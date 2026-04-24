@@ -1,0 +1,20 @@
+# v0 runtime files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+
+# Common ignores
+node_modules/
+.next/
+.env*
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+backend/venv/
+backend/*.db
+backend/*.log
+playwright-report/
+test-results/

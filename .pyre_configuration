@@ -1,0 +1,10 @@
+{
+  "source_directories": [
+    "D:/Agri/backend"
+  ],
+  "search_path": [
+    "D:/Agri/venv/Lib/site-packages"
+  ],
+  "site_package_search_strategy": "all",
+  "strict": false
+}
