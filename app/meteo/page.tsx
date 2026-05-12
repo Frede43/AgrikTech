@@ -18,10 +18,15 @@ import {
   Globe,
 } from "lucide-react";
 import { t, Lang } from "@/lib/translations";
-import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/lib/LanguageContext";
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-config";
+import { useSession } from "@/lib/session";
+import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
+import { BuyerLayout } from "@/components/buyer/buyer-layout";
+import { LogisticsLayout } from "@/components/logistics/logistics-layout";
 
 const urgencyConfig = {
   high: {
@@ -55,75 +60,84 @@ const weatherIcons: Record<string, any> = {
 
 export default function MeteoPage() {
   const { lang, setLang, text } = useLanguage();
+  const { session, ready: sessionReady } = useSession();
   const [weather, setWeather] = useState<any>(null);
   const [tips, setTips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProvince, setSelectedProvince] = useState("Bujumbura");
+  const [provinces, setProvinces] = useState<string[]>([]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      // Simulation d'appel API
-      setTimeout(() => {
-        setWeather({
-          location: "Gitega, Burundi",
-          current: {
-            temp: 24,
-            condition: "Ensoleillé",
-            humidity: 62,
-            wind: 12,
-          },
-          forecast: [
-            { day: "Lun", temp: 25, condition: "Ensoleillé" },
-            { day: "Mar", temp: 23, condition: "Nuageux" },
-            { day: "Mer", temp: 21, condition: "Pluie" },
-            { day: "Jeu", temp: 22, condition: "Partiellement nuageux" },
-            { day: "Ven", temp: 24, condition: "Ensoleillé" },
-          ],
-        });
-        setTips([
-          {
-            id: 1,
-            title: "Préparation des semis",
-            desc: "Le temps ensoleillé prévu pour les 2 prochains jours est idéal pour préparer vos sols.",
-            urgency: "medium",
-            category: "Culture",
-          },
-          {
-            id: 2,
-            title: "Alerte Pluie Forte",
-            desc: "Des averses importantes sont prévues mercredi. Assurez-vous que vos systèmes de drainage sont dégagés.",
-            urgency: "high",
-            category: "Alerte",
-          },
-          {
-            id: 3,
-            title: "Conseil Fertilisation",
-            desc: "Appliquez l'engrais après la pluie de mercredi pour une meilleure absorption par les racines.",
-            urgency: "low",
-            category: "Entretien",
-          },
-        ]);
-        setLoading(false);
-      }, 1000);
+    const fetchProvinces = async () => {
+      try {
+        const data = await apiFetch("/weather/provinces");
+        setProvinces(data);
+      } catch (err) {
+        console.error("Erreur provinces:", err);
+      }
     };
-    fetchData();
+    fetchProvinces();
   }, []);
 
-  if (loading || !weather) {
+  const fetchData = async (province: string) => {
+    setLoading(true);
+    try {
+      // Tentative de récupération des données réelles
+      const data = await apiFetch(`/weather/forecast?province=${province}`);
+      setWeather(data.weather);
+      setTips(data.tips);
+      
+      // Mise en cache pour le mode hors ligne
+      localStorage.setItem(`weather_cache_${province}`, JSON.stringify(data));
+    } catch (err) {
+      console.error("Erreur météo:", err);
+      // Mode hors ligne : tenter de lire le cache
+      const cached = localStorage.getItem(`weather_cache_${province}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setWeather(parsed.weather);
+        setTips(parsed.tips);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData(selectedProvince);
+  }, [selectedProvince]);
+
+  if (loading || !weather || !sessionReady) {
     return (
-      <DashboardLayout title={loading ? "Chargement..." : text.weatherTitle} subtitle={loading ? "Connexion au satellite météo" : text.weatherSubtitle}>
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <RefreshCw className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">{loading ? "Récupération des données agricoles..." : ""}</p>
-        </div>
-      </DashboardLayout>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Récupération des données agricoles...</p>
+      </div>
     );
   }
 
-  return (
-    <DashboardLayout
-      title={text.weatherTitle}
-      subtitle={`${text.weatherSubtitle} (${weather.location})`}
-    >
+  const pageTitle = text.weatherTitle;
+  const pageSubtitle = `${text.weatherSubtitle} (${weather.city || selectedProvince})`;
+
+  const content = (
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Province Selector */}
+      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+        {provinces.map((p) => (
+          <button
+            key={p}
+            onClick={() => setSelectedProvince(p)}
+            className={cn(
+              "px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0",
+              selectedProvince === p
+                ? "bg-primary text-white border-primary shadow-md"
+                : "bg-card text-muted-foreground border-border hover:border-primary/50"
+            )}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
       {/* Hero weather card */}
       <div
         className="rounded-2xl p-6 text-white relative overflow-hidden"
@@ -135,13 +149,11 @@ export default function MeteoPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2 mb-2">
               <Sun className="w-5 h-5 text-yellow-300" />
-              <p className="text-sm opacity-70">{weather.location}</p>
+              <p className="text-sm opacity-70">{weather.city}</p>
             </div>
             <p className="text-5xl font-bold leading-none">{weather.current.temp}°C</p>
             <p className="text-base mt-2 opacity-85 font-medium">
-              {weather.current.condition === "Ensoleillé" ? text.weatherConditionSun :
-                weather.current.condition === "Pluie" ? text.weatherConditionRain :
-                  weather.current.condition === "Nuageux" ? text.weatherConditionCloudy : weather.current.condition}
+              {weather.current.description}
             </p>
             <div className="flex items-center gap-4 mt-4">
               <div className="flex items-center gap-1.5">
@@ -150,12 +162,18 @@ export default function MeteoPage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <Wind className="w-4 h-4 opacity-70" />
-                <span className="text-sm opacity-85">{weather.current.wind} km/h {text.weatherWind}</span>
+                <span className="text-sm opacity-85">{weather.current.wind_speed} km/h {text.weatherWind}</span>
               </div>
             </div>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 flex items-center justify-center min-w-[120px]">
-            {weatherIcons[weather.current.condition] || <CloudSun className="w-12 h-12" />}
+            {weatherIcons[weather.current.description] || (
+              <img 
+                src={`https://openweathermap.org/img/wn/${weather.current.icon}@2x.png`} 
+                alt="weather" 
+                className="w-16 h-16"
+              />
+            )}
           </div>
         </div>
       </div>
@@ -166,19 +184,19 @@ export default function MeteoPage() {
         <div className="grid grid-cols-5 gap-2">
           {weather.forecast.map((day: any) => (
             <div
-              key={day.day}
+              key={day.date}
               className="flex flex-col items-center p-3 rounded-xl hover:bg-secondary/50 transition-colors"
             >
               <span className="text-xs font-medium text-muted-foreground mb-2">
-                {day.day}
+                {day.date}
               </span>
               <div className="w-8 h-8 flex items-center justify-center mb-2">
-                {weatherIcons[day.condition] ? (
-                  // Clone default icon but smaller
-                  <div className="scale-50">{weatherIcons[day.condition]}</div>
-                ) : (
-                  <CloudSun className="w-4 h-4 text-slate-400" />
-                )}
+                <img 
+                  src={`https://openweathermap.org/img/wn/${day.icon}.png`} 
+                  alt="forecast" 
+                  className="w-8 h-8"
+                  title={day.desc}
+                />
               </div>
               <span className="text-sm font-bold text-foreground">
                 {day.temp}°
@@ -198,11 +216,11 @@ export default function MeteoPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {tips.map((tip) => {
-            const config = (urgencyConfig as any)[tip.urgency] || urgencyConfig.low;
+          {tips.map((tip, idx) => {
+            const config = (urgencyConfig as any)[tip.type] || urgencyConfig.low;
             return (
               <div
-                key={tip.id}
+                key={idx}
                 className={cn(
                   "p-4 rounded-2xl border transition-all hover:shadow-sm",
                   config.bg,
@@ -224,7 +242,7 @@ export default function MeteoPage() {
                   {tip.title}
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  {tip.desc}
+                  {tip.body}
                 </p>
                 <button
                   className={cn(
@@ -241,17 +259,32 @@ export default function MeteoPage() {
         </div>
       </div>
 
-      <div className="p-4 rounded-2xl bg-secondary/50 border border-border flex gap-4 items-start">
-        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0 border border-border">
-          <Wind className="w-4 h-4 text-primary" />
+    </div>
+  );
+
+  // Hybrid layout based on session
+  if (session?.role === "fermier") {
+    return <DashboardLayout title={pageTitle} subtitle={pageSubtitle}>{content}</DashboardLayout>;
+  }
+  if (session?.role === "acheteur") {
+    return <BuyerLayout title={pageTitle} subtitle={pageSubtitle}>{content}</BuyerLayout>;
+  }
+  if (session?.role === "logistique") {
+    return <LogisticsLayout title={pageTitle} subtitle={pageSubtitle}>{content}</LogisticsLayout>;
+  }
+
+  // Public layout
+  return (
+    <div className="flex flex-col min-h-screen">
+      <SiteHeader />
+      <main className="flex-1 p-4 md:p-8 bg-background">
+        <div className="max-w-4xl mx-auto mb-8">
+          <h1 className="text-3xl font-bold text-foreground">{pageTitle}</h1>
+          <p className="text-muted-foreground mt-2">{pageSubtitle}</p>
         </div>
-        <div>
-          <p className="text-xs font-bold text-foreground">{text.weatherOfflineNote}</p>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-            {text.weatherOfflineBody}
-          </p>
-        </div>
-      </div>
-    </DashboardLayout>
+        {content}
+      </main>
+      <SiteFooter />
+    </div>
   );
 }

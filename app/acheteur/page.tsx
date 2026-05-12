@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ChevronRight, Star, Clock, RefreshCw } from "lucide-react";
+import { Search, ChevronRight, Star, Clock, RefreshCw, MapPin } from "lucide-react";
 import { BuyerLayout } from "@/components/buyer/buyer-layout";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -171,6 +171,25 @@ export default function BuyerHomePage() {
         {offlineNotice && (
           <div className="mb-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-medium text-foreground">
             {offlineNotice}
+          </div>
+        )}
+
+        {ready && user && (!user.province || !user.address) && (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-500">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-amber-900 uppercase tracking-tight">Profil incomplet</p>
+                <p className="text-[11px] text-amber-800/80 mt-0.5 leading-relaxed">
+                  Ajoutez votre adresse et votre province dans les paramètres pour faciliter vos futures livraisons.
+                </p>
+                <Link href="/acheteur/parametres" className="inline-block mt-2 text-[10px] font-black uppercase text-amber-900 bg-amber-200/50 px-3 py-1.5 rounded-lg hover:bg-amber-200 transition-colors">
+                  Compléter maintenant
+                </Link>
+              </div>
+            </div>
           </div>
         )}
 

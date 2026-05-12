@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
-import models, schemas, config, utils
-from database import get_db
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
+from backend.database import get_db
 
 router = APIRouter(
     prefix="/disputes",

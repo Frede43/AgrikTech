@@ -39,6 +39,19 @@ const urgencyConfig = {
 };
 
 function WeatherIcon({ icon, className }: { icon: string; className?: string }) {
+  if (!icon) return <Sun className={className} />;
+  
+  // Si c'est une icône OpenWeatherMap (ex: 01d)
+  if (/^\d{2}[dn]$/.test(icon)) {
+    return (
+      <img 
+        src={`https://openweathermap.org/img/wn/${icon}@2x.png`} 
+        alt="weather" 
+        className={className}
+      />
+    );
+  }
+
   if (icon === "cloud-rain") return <CloudRain className={className} />;
   if (icon === "cloud-sun") return <CloudSun className={className} />;
   return <Sun className={className} />;
@@ -122,7 +135,7 @@ export function WeatherMini() {
             <span className="text-xs font-medium text-muted-foreground">{day.day}</span>
             <WeatherIcon
               icon={day.icon}
-              className={`w-4 h-4 ${day.icon === "cloud-rain" ? "text-blue-500" : day.icon === "cloud-sun" ? "text-amber-500" : "text-yellow-500"}`}
+              className="w-5 h-5"
             />
             <span className="text-xs font-bold text-foreground">{day.high}°</span>
             {day.rain > 0 && (

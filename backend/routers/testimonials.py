@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-import models, schemas, utils
-from database import get_db
+import backend.models as models, backend.schemas as schemas, backend.utils as utils
+from backend.database import get_db
 
 router = APIRouter(
     prefix="/testimonials",

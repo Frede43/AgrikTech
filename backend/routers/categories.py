@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 
-import models, schemas
-from database import get_db
+import backend.models as models, backend.schemas as schemas
+from backend.database import get_db
 
 router = APIRouter(
     prefix="/categories",

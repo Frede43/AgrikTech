@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 
-import models, schemas, config, utils
-from database import get_db
-from services.sms_service import sms_service
-from services import user_service
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
+from backend.database import get_db
+from backend.services.sms_service import sms_service
+from backend.services import user_service
 
 router = APIRouter(
     prefix="/auth",

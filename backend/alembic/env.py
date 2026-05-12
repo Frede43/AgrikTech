@@ -1,4 +1,4 @@
-from logging.config import fileConfig
+from logging.backend.config as config import fileConfig
 import os
 import sys
 
@@ -10,8 +10,8 @@ from sqlalchemy import pool
 from alembic import context
 
 # Importer les modèles et la base pour le support 'autogenerate'
-from database import Base, DATABASE_URL
-import models  # Important pour charger tous les modèles dans Base.metadata
+from backend.database import Base, DATABASE_URL
+import backend.models as models  # Important pour charger tous les modèles dans Base.metadata
 
 # this is the Alembic Config object
 config = context.config

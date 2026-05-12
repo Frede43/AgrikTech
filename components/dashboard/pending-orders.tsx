@@ -44,9 +44,10 @@ export function PendingOrders({ orders }: { orders: any[] }) {
           const status = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.default;
           const StatusIcon = status.icon;
           return (
-            <div
+            <Link
               key={order.id}
-              className="flex items-start gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
+              href={`/fermier/commande/${order.id}`}
+              className="flex items-start gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-all hover:border-primary/20 group"
             >
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${status.color}`}>
                 <StatusIcon className="w-4 h-4" />
@@ -64,7 +65,7 @@ export function PendingOrders({ orders }: { orders: any[] }) {
                   <span className="text-xs text-muted-foreground">{order.dueDate}</span>
                 </div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>

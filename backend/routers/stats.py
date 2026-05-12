@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from typing import List, Optional
 from datetime import datetime, timedelta
 from decimal import Decimal
-import models, schemas, utils, config
-from database import get_db
-from services.market_service import market_service
+import backend.models as models, backend.schemas as schemas, backend.utils as utils, backend.config as config
+from typing import List, Optional, Any, cast
+from backend.database import get_db
+from backend.services.market_service import market_service
 
 router = APIRouter(
     prefix="/stats",
@@ -29,7 +29,7 @@ def get_admin_stats(request: fastapi.Request, db: Session = Depends(get_db)):
     """
     # Chargement des KPIs (Burundi Admin)
     print("Chargement des KPIs Admin...")
-    from routers.admin import check_admin_auth
+    from backend.routers.admin import check_admin_auth
     check_admin_auth(request, db)
     
     from sqlalchemy import func
@@ -125,7 +125,7 @@ def get_admin_stats(request: fastapi.Request, db: Session = Depends(get_db)):
     if not monthly_gmv:
         monthly_gmv = [{"month": "2024-03", "gmv": 0}]
 
-    from routers.notifications import generate_system_notifications
+    from backend.routers.notifications import generate_system_notifications
     recent_notifications = generate_system_notifications(db)
 
     return {
@@ -156,27 +156,52 @@ def get_admin_stats(request: fastapi.Request, db: Session = Depends(get_db)):
     }
 
 @router.get("/weather")
-def get_weather_stats():
+def get_weather_stats(province: str = "Bujumbura"):
     """
-    Retourne les données météo pour le dashboard.
-    En production, ceci appellerait une API météo réelle.
+    Retourne les données météo réelles pour le dashboard.
     """
+    from backend.services.weather_service import weather_service
+    weather_data = weather_service.get_weather_forecast(province)
+    
+    # Adapter au format attendu par WeatherMini
     return {
-        "location": "Gitega, Burundi",
+        "location": weather_data["city"],
         "current": {
-            "temp": 24,
-            "condition": "Partiellement Nuageux",
-            "humidity": 65,
-            "wind": 12
+            "temp": weather_data["current"]["temp"],
+            "condition": weather_data["current"]["description"],
+            "humidity": weather_data["current"]["humidity"],
+            "wind": weather_data["current"]["wind_speed"]
         },
         "forecast": [
-            {"day": "Lun", "high": 27, "low": 18, "icon": "sun", "rain": 10},
-            {"day": "Mar", "high": 26, "low": 17, "icon": "cloud-sun", "rain": 25},
-            {"day": "Mer", "high": 22, "low": 16, "icon": "cloud-rain", "rain": 85},
-            {"day": "Jeu", "high": 24, "low": 16, "icon": "cloud-rain", "rain": 40},
-            {"day": "Ven", "high": 25, "low": 17, "icon": "cloud-sun", "rain": 15}
+            {
+                "day": f["date"], 
+                "high": f["temp"], 
+                "low": f["temp"] - 4, 
+                "icon": "cloud-sun" if "nuage" in f["desc"].lower() else "sun" if "soleil" in f["desc"].lower() else "cloud-rain", 
+                "rain": 0
+            } for f in weather_data["forecast"]
         ]
     }
+
+@router.get("/tips")
+def get_agri_tips(province: str = "Bujumbura"):
+    """
+    Retourne des conseils et alertes agricoles dynamiques réels.
+    """
+    from backend.services.weather_service import weather_service
+    weather_data = weather_service.get_weather_forecast(province)
+    tips = weather_service.get_agricultural_tips(province, weather_data["current"]["description"])
+    
+    # Adapter au format attendu par WeatherMini
+    return [
+        {
+            "id": i,
+            "type": tip["type"],
+            "urgency": tip["type"] if tip["type"] in ["high", "medium", "low"] else "medium",
+            "title": tip["title"],
+            "body": tip["body"]
+        } for i, tip in enumerate(tips)
+    ]
 
 @router.get("/platform-settings")
 def get_public_platform_settings(db: Session = Depends(get_db)):
@@ -185,42 +210,13 @@ def get_public_platform_settings(db: Session = Depends(get_db)):
     Accessible sans authentification admin.
     """
     settings = db.query(models.SystemSettings).first()
-    rate = float(settings.commission_rate) if settings else 0.05
+    rate = float(cast(Any, settings.commission_rate)) if settings else 0.05
     return {
         "commission_rate": rate,
         "maintenance_mode": settings.maintenance_mode if settings else False,
         "support_phone": settings.support_phone if settings else config.DEFAULT_SUPPORT_PHONE,
         "support_whatsapp": settings.support_whatsapp if settings else config.DEFAULT_SUPPORT_WHATSAPP
     }
-
-@router.get("/tips")
-def get_agri_tips():
-    """
-    Retourne des conseils et alertes agricoles dynamiques.
-    """
-    return [
-        {
-            "id": 1,
-            "type": "weather",
-            "urgency": "high",
-            "title": "Alerte Pluie Forte (Mercredi)",
-            "body": "Des précipitations importantes sont prévues. Pensez à protéger vos récoltes sensibles et à vérifier l'évacuation des eaux."
-        },
-        {
-            "id": 2,
-            "type": "market",
-            "urgency": "medium",
-            "title": "Opportunité Haricot Jaune",
-            "body": "La demande est en hausse à Bujumbura. C'est le bon moment pour récolter si vos stocks sont prêts."
-        },
-        {
-            "id": 3,
-            "type": "crop",
-            "urgency": "low",
-            "title": "Conseil Fertilité",
-            "body": "Pensez à alterner vos cultures de maïs avec des légumineuses pour préserver l'azote du sol dans la région de Gitega."
-        }
-    ]
 
 @router.get("/farmer/{user_id}", response_model=schemas.FarmerStats)
 def get_farmer_stats(user_id: int, request: Request, db: Session = Depends(get_db)):
@@ -332,7 +328,7 @@ def get_farmer_dashboard_stats(user_id: int, request: Request, db: Session = Dep
         "user": {
             "name": target_user.name,
             "province": target_user.province or "Burundi",
-            "balance": float(target_user.balance)
+            "balance": float(cast(Any, target_user.balance))
         },
         "stats": {
             "revenue": float(revenue),
@@ -347,7 +343,7 @@ def get_farmer_dashboard_stats(user_id: int, request: Request, db: Session = Dep
                 "id": f"ORD-{o.id:04d}",
                 "buyer": o.buyer.name if o.buyer else "Acheteur",
                 "status": o.status,
-                "amount": float(o.total_price),
+                "amount": float(cast(Any, o.total_price)),
                 "date": o.created_at.isoformat()
             } for o in recent_orders
         ]

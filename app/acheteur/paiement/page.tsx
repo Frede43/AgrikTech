@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, MapPin, Phone, CreditCard, Loader2 } from "lucide-react";
 import { BuyerLayout } from "@/components/buyer/buyer-layout";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useCart } from "@/components/cart-context";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useOnlineStatus } from "@/lib/offline";
+import { formatUserLocation, useSessionUserProfile } from "@/lib/user-profile";
 
 const paymentMethods = [
   { id: "lumicash", label: "Lumicash", prefix: "+257 7X", color: "bg-yellow-400", icon: "🌟" },
@@ -27,11 +28,20 @@ export default function PaiementPage() {
   const isOnline = useOnlineStatus();
   const { items, totalPrice, clearCart, hydrated } = useCart();
   const { session, ready, isOfflineFallback } = useRequiredSession("acheteur");
+  const { user } = useSessionUserProfile(session, ready);
   const [method, setMethod] = useState("lumicash");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+
+  // Pré-remplissage avec les données du profil
+  useEffect(() => {
+    if (user) {
+      if (!address) setAddress(formatUserLocation(user));
+      if (!phone) setPhone(user.phone_number || "");
+    }
+  }, [user, address, phone]);
 
   const delivery = items.length > 0 ? 5_000 : 0;
   const commission = Math.round(totalPrice * 0.05);

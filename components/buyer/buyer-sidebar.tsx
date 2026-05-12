@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   MessageCircle,
+  CloudSun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -68,6 +69,7 @@ export function BuyerSidebar({ mobile = false }: BuyerSidebarProps) {
     { href: "/acheteur/recherche", label: copy.search, icon: Search },
     { href: "/acheteur/panier", label: copy.cart, icon: ShoppingCart },
     { href: "/acheteur/commande", label: copy.orders, icon: Package },
+    { href: "/meteo", label: lang === "fr" ? "Météo & Conseils" : "Ibihe & Inama", icon: CloudSun },
     { href: "/acheteur/temoignages", label: copy.testimonials, icon: Star },
     { href: "/acheteur/profil", label: copy.profile, icon: User },
   ];

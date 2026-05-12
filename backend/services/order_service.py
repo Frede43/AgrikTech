@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
-import models, schemas, config, utils
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
 
 class OrderService:
     """
@@ -17,7 +17,7 @@ class OrderService:
 
     @staticmethod
     def is_available_for_pickup(status: str) -> bool:
-        return status == "PAID_ESCROW"
+        return status in ["PAID_ESCROW", "CONFIRMED", "READY_FOR_PICKUP"]
 
     @staticmethod
     def is_in_delivery_phase(status: str) -> bool:

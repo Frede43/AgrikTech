@@ -28,6 +28,7 @@ export function SiteHeader() {
                 {/* Nav + lang */}
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
                     <Link href="/produits" className="hover:text-primary transition-colors">{text.navProducts}</Link>
+                    <Link href="/meteo" className="hover:text-primary transition-colors">{text.sideWeather}</Link>
                     <Link href="/a-propos" className="hover:text-primary transition-colors">{text.aboutTitle}</Link>
                     <Link href="/tarifs" className="hover:text-primary transition-colors">{text.feesTitle}</Link>
                 </nav>

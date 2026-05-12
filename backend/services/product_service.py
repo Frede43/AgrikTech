@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import Optional, Tuple
-import models, schemas, config, utils
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
 
 class ProductService:
     """

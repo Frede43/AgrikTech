@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-import models, schemas, config, utils
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
 
 def persist_user(user: schemas.UserCreate, db: Session) -> models.User:
     phone_number = user.phone_number

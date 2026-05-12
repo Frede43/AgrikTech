@@ -3,7 +3,7 @@ from decimal import Decimal
 from datetime import datetime
 from fastapi import HTTPException
 
-import models, schemas, config, utils
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
 
 class PaymentService:
     """
@@ -30,7 +30,7 @@ class PaymentService:
         ))
         
         order.status = "PAID_ESCROW"
-        db.commit()
+        # Removed db.commit() to allow atomic transactions in routers
         return True
 
     @staticmethod
@@ -75,7 +75,7 @@ class PaymentService:
             detail=f"Commission de {commission_amount} BIF collectée pour la commande {order.id}"
         ))
         
-        db.commit()
+        # Le commit est géré par l'appelant pour assurer l'atomicité
         return True
 
 payment_service = PaymentService()

@@ -263,7 +263,14 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
             ? await response.json().catch(() => ({ detail: "Erreur serveur" }))
             : { detail: await response.text().catch(() => "Erreur serveur") };
 
-        throw new ApiError(errorPayload.detail || `HTTP error! status: ${response.status}`, response.status);
+        const detail = errorPayload.detail;
+        const message = typeof detail === "string" 
+            ? detail 
+            : detail && typeof detail === "object"
+                ? JSON.stringify(detail)
+                : `HTTP error! status: ${response.status}`;
+
+        throw new ApiError(message, response.status);
     }
 
     if (response.status === 204) return null;

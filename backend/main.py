@@ -6,7 +6,10 @@ import os
 from backend.database import engine
 import backend.models as models
 import backend.config as config
-from backend.routers import auth, market, admin, products, orders, wallet, disputes, community, categories, stats, users, testimonials, notifications, platform, support, reviews, cart, stock_movements
+from backend.routers import auth, market, admin, products, orders, wallet, disputes, community, categories, stats, users, testimonials, notifications, platform, support, reviews, cart, stock_movements, weather
+
+# Create database tables
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AgriConnect Burundi API", description="Backend pour le projet AgriConnect Burundi")
 
@@ -38,6 +41,12 @@ app.include_router(support.router)
 app.include_router(reviews.router)
 app.include_router(cart.router)
 app.include_router(stock_movements.router)
+app.include_router(weather.router)
+
+# Health check endpoint for connection detection
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
 
 # Mount Static Files (for product images, kyc docs)
 if not os.path.exists("static"):

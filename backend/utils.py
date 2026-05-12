@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import UTC, datetime, timedelta
 from math import asin, cos, radians, sin, sqrt
 
-import models, schemas, config
+import backend.models as models, backend.schemas as schemas, backend.config as config
 
 def utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)

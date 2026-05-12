@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
-import models, schemas, config, utils
-from database import get_db
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
+from backend.database import get_db
 
 router = APIRouter(
     prefix="/admin",
@@ -341,7 +341,7 @@ def add_admin_agent(payload: schemas.UserCreate, request: Request, db: Session =
         return {"message": "Utilisateur promu en administrateur"}
 
     # Sinon création complète
-    from services.user_service import persist_user
+    from backend.services.user_service import persist_user
     payload.role = "admin" # On force le role
     new_admin = persist_user(payload, db)
     

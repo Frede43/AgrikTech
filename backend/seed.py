@@ -1,6 +1,6 @@
-from database import SessionLocal
-import models
-from database import engine
+from backend.database import SessionLocal
+import backend.models as models
+from backend.database import engine
 
 def seed():
     models.Base.metadata.create_all(bind=engine)

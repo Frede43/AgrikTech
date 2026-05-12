@@ -52,7 +52,9 @@ export function OfflineSyncStatus() {
     }
   }, [isOnline, pendingCount, runSync]);
 
-  if (isOnline && !syncing && pendingCount === 0) {
+  // Only show this component if we are actually syncing or have items to sync.
+  // The general "Offline" message is now handled by ConnectionStatus.
+  if (!syncing && pendingCount === 0) {
     return null;
   }
 

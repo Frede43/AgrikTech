@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-import models, schemas, config, utils
-from database import get_db
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
+from backend.database import get_db
+from typing import cast
+from decimal import Decimal
 
 router = APIRouter(
     prefix="/users",
@@ -31,7 +33,7 @@ def admin_create_user(payload: schemas.UserCreate, request: Request, db: Session
     if not current_user or not utils.user_has_role(current_user, "admin"):
         raise HTTPException(status_code=403, detail="Accès non autorisé.")
         
-    from services.user_service import persist_user
+    from backend.services.user_service import persist_user
     db_user = persist_user(payload, db)
     return db_user
 
@@ -127,16 +129,16 @@ def get_user_transactions(user_id: int, request: Request, db: Session = Depends(
             "status": "paid",
             "buyer": order.buyer.name if order and order.buyer else "Système",
             "items": order.product.name if order and order.product else "Retrait Mobile Money",
-            "gross": float(abs(log.amount)),
+            "gross": float(abs(cast(Decimal, log.amount))),
             "commission": 0, # Déjà déduit dans le net pour les logs
-            "net": float(log.amount),
-            "order_reference": utils.format_order_reference(order.id) if order else None,
+            "net": float(cast(Decimal, log.amount)),
+            "order_reference": utils.format_order_reference(cast(int, order.id)) if order else None,
             "pickup_qr": order.pickup_qr_token if order else None
         })
 
     # 2. Si c'est un fermier, ajouter les commandes EN ATTENTE (pas encore de TransactionLog)
     target_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if target_user and utils.normalize_role(target_user.role) == "fermier":
+    if target_user and utils.normalize_role(cast(str, target_user.role)) == "fermier":
         pending_orders = (
             db.query(models.Order)
             .filter(
@@ -148,11 +150,11 @@ def get_user_transactions(user_id: int, request: Request, db: Session = Depends(
         
         for o in pending_orders:
             # Vérifier si on n'a pas déjà un log pour cette commande (sécurité)
-            if any(r.get("order_reference") == utils.format_order_reference(o.id) for r in results):
+            if any(r.get("order_reference") == utils.format_order_reference(cast(int, o.id)) for r in results):
                 continue
                 
-            total = float(o.total_price)
-            comm = float(o.total_price) * config.DEFAULT_COMMISSION_RATE
+            total = float(cast(Decimal, o.total_price))
+            comm = float(cast(Decimal, o.total_price)) * float(config.DEFAULT_COMMISSION_RATE)
             results.append({
                 "id": f"ORD-{o.id:05d}",
                 "date": o.created_at.isoformat(),
@@ -163,7 +165,7 @@ def get_user_transactions(user_id: int, request: Request, db: Session = Depends(
                 "gross": total,
                 "commission": comm,
                 "net": total - comm,
-                "order_reference": utils.format_order_reference(o.id),
+                "order_reference": utils.format_order_reference(cast(int, o.id)),
                 "pickup_qr": o.pickup_qr_token
             })
 

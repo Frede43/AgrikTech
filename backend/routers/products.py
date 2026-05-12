@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 import os, uuid, shutil
 
-import models, schemas, config, utils
-from database import get_db
-from services.product_service import product_service
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
+from backend.database import get_db
+from backend.services.product_service import product_service
 
 router = APIRouter(
     prefix="/products",

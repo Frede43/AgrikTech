@@ -13,6 +13,7 @@ import {
   LogOut,
   MessageCircle,
   Loader2,
+  CloudSun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-config";
@@ -57,6 +58,7 @@ export function LogisticsSidebar() {
   const navItems = [
     { href: "/logistique", label: copy.missions, icon: List },
     { href: "/logistique/validation", label: copy.validation, icon: CheckCircle },
+    { href: "/meteo", label: lang === "fr" ? "Météo & Conseils" : "Ibihe & Inama", icon: CloudSun },
   ];
 
   useEffect(() => {

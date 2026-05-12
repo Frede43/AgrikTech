@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 from decimal import Decimal
-import models, config, utils
+import backend.models as models, backend.config as config, backend.utils as utils
 
 class InvoiceService:
     """

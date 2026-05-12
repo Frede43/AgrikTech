@@ -44,8 +44,12 @@ export default function LivraisonDetailPage() {
 
   const statusLabels: Record<string, string> = {
     pending: text.logiStatusPending,
+    ready_for_pickup: text.logiStatusPending,
     collected: text.logiStatusCollected,
+    picked_up: text.logiStatusCollected,
+    in_transit: text.logiStatusCollected,
     delivered: text.logiStatusDelivered,
+    completed: text.logiStatusDelivered,
     disputed: disputedLabel,
   };
 
@@ -62,8 +66,8 @@ export default function LivraisonDetailPage() {
   const handleAction = async () => {
     if (!delivery || !session || !valCode) return;
 
-    const isPickupStep = delivery.status === "pending";
-    const isDeliveryStep = delivery.status === "collected";
+    const isPickupStep = ["pending", "ready_for_pickup", "paid_escrow", "confirmed"].includes(delivery.status);
+    const isDeliveryStep = ["collected", "picked_up", "in_transit", "delivered_pending_confirmation"].includes(delivery.status);
     if (!isPickupStep && !isDeliveryStep) return;
 
     setActionLoading(true);
@@ -102,10 +106,10 @@ export default function LivraisonDetailPage() {
 
   if (!delivery) return null;
 
-  const isPickupStep = delivery.status === "pending";
+  const isPickupStep = ["pending", "ready_for_pickup", "paid_escrow", "confirmed"].includes(delivery.status);
   const isDisputed = delivery.status === "disputed";
-  const isDeliveryStep = delivery.status === "collected" || delivery.status === "delivered" || isDisputed;
-  const isCompleted = delivery.status === "delivered";
+  const isDeliveryStep = ["collected", "picked_up", "in_transit", "delivered_pending_confirmation"].includes(delivery.status) || delivery.status === "delivered" || isDisputed;
+  const isCompleted = delivery.status === "delivered" || delivery.status === "completed";
   const statusLabel = statusLabels[delivery.status] || delivery.status;
 
   return (
@@ -279,11 +283,11 @@ export default function LivraisonDetailPage() {
                   {actionLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ChevronRight className="w-8 h-8" />}
                 </Button>
               </div>
-              <div className="bg-secondary/20 rounded-xl p-3 text-center border border-border/30">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">
+              <div className="bg-secondary/10 rounded-xl p-4 text-center border border-border/30">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
                   {isPickupStep
-                    ? `Token de démo: ${delivery.pickup_qr}`
-                    : `OTP de démo: ${delivery.delivery_otp}`
+                    ? "Demandez le code de collecte au fermier lors de la récupération."
+                    : "Demandez le code OTP à l'acheteur lors de la remise du colis."
                   }
                 </p>
               </div>

@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-import models, schemas, config, utils
-from database import get_db
-from services.market_service import market_service
+import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
+from backend.database import get_db
+from backend.services.market_service import market_service
 
 router = APIRouter(
     prefix="/market",

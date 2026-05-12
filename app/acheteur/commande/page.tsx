@@ -71,6 +71,14 @@ export default function CommandePage() {
       label: disputedLabel,
       className: "bg-amber-100 text-amber-800 border-amber-200",
     },
+    picked_up: {
+      label: text.trackStatusCollected,
+      className: "bg-primary/10 text-primary border-primary/20",
+    },
+    completed: {
+      label: text.trackStatusDelivered,
+      className: "bg-primary text-primary-foreground border-0",
+    },
   } as const;
 
   const loadLatestOrder = useCallback(async () => {
@@ -111,9 +119,12 @@ export default function CommandePage() {
   const steps = useMemo(() => {
     if (!order) return [];
 
-    const isDelivered = order.status === "delivered";
-    const isDisputed = order.status === "disputed";
-    const currentIndex = order.status === "collected" || isDisputed ? 2 : order.status === "delivered" ? 3 : 1;
+    const normalizedStatus = order.status.toLowerCase().replace(/ /g, "_");
+    const isDelivered = normalizedStatus === "delivered" || normalizedStatus === "completed";
+    const isDisputed = normalizedStatus === "disputed";
+    const isCollected = ["collected", "picked_up", "picked up", "in_transit", "in transit"].includes(normalizedStatus);
+    
+    const currentIndex = isCollected || isDisputed ? 2 : isDelivered ? 3 : 1;
 
     return [
       {
@@ -181,8 +192,9 @@ export default function CommandePage() {
     );
   }
 
-  const statusBadge = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.pending;
-  const isDisputed = order.status === "disputed";
+    const normalizedStatus = order.status.toLowerCase().replace(/ /g, "_");
+    const statusBadge = statusConfig[normalizedStatus as keyof typeof statusConfig] || statusConfig.pending;
+    const isDisputed = normalizedStatus === "disputed";
   const driverInitials = order.driver?.name
     ?.split(" ")
     .map((part) => part[0])
@@ -328,33 +340,18 @@ export default function CommandePage() {
           })}
         </div>
 
-        {/* Delivery codes */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-3xl p-5 flex flex-col gap-4 shadow-sm relative overflow-hidden group">
-            <div className="absolute -right-4 -bottom-4 bg-primary/10 w-24 h-24 rounded-full blur-xl group-hover:bg-primary/20 transition-colors" />
-            <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-primary/10 relative z-10">
-              <QrCode className="w-6 h-6 text-primary" />
-            </div>
-            <div className="space-y-1.5 relative z-10">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">{text.trackTokenTitle}</p>
-              <p className="text-xl font-mono font-black text-primary tracking-widest break-all bg-white/50 p-2 rounded-lg border border-primary/10 select-all">{order.pickup_qr}</p>
-              <p className="text-xs font-medium text-muted-foreground leading-tight pt-1">
-                {text.trackTokenDesc}
-              </p>
-            </div>
+        {/* Delivery OTP */}
+        <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-3xl p-6 flex flex-col gap-4 shadow-sm relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 bg-primary/10 w-24 h-24 rounded-full blur-xl group-hover:bg-primary/20 transition-colors" />
+          <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-primary/10 relative z-10">
+            <CheckCircle className="w-6 h-6 text-primary" />
           </div>
-          <div className="bg-gradient-to-br from-secondary/50 to-secondary/30 border border-border rounded-3xl p-5 flex flex-col gap-4 shadow-sm relative overflow-hidden group">
-            <div className="absolute -right-4 -bottom-4 bg-foreground/5 w-24 h-24 rounded-full blur-xl group-hover:bg-foreground/10 transition-colors" />
-            <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-border relative z-10">
-              <CheckCircle className="w-6 h-6 text-foreground" />
-            </div>
-            <div className="space-y-1.5 relative z-10">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{text.trackOtpTitle}</p>
-              <p className="text-xl font-mono font-black text-foreground tracking-widest break-all bg-white/50 p-2 rounded-lg border border-border select-all">{order.delivery_otp}</p>
-              <p className="text-xs font-medium text-muted-foreground leading-tight pt-1">
-                {text.trackOtpDesc}
-              </p>
-            </div>
+          <div className="space-y-1.5 relative z-10">
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">{text.trackOtpTitle}</p>
+            <p className="text-2xl font-mono font-black text-primary tracking-[0.3em] break-all bg-white/50 p-3 rounded-lg border border-primary/10 text-center select-all">{order.delivery_otp}</p>
+            <p className="text-xs font-medium text-muted-foreground leading-relaxed pt-1">
+              {text.trackOtpDesc}
+            </p>
           </div>
         </div>
 

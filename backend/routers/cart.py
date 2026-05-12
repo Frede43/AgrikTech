@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Union
 from pydantic import BaseModel
 
-import models
-from database import get_db
+import backend.models as models
+from backend.database import get_db
 
 router = APIRouter(
     prefix="/cart",

@@ -1,6 +1,6 @@
 try:
-    from database import engine, SessionLocal
-    import models
+    from backend.database import engine, SessionLocal
+    import backend.models as models
     from sqlalchemy.orm import Session
     import traceback
     

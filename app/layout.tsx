@@ -3,6 +3,7 @@ import { Inter, DM_Sans } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/components/cart-context'
 import { OfflineSyncStatus } from '@/components/offline-sync-status'
+import { ConnectionStatus } from '@/components/ConnectionStatus'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import './globals.css'
 
@@ -56,6 +57,7 @@ export default function RootLayout({
           <CartProvider>
             {children}
             <OfflineSyncStatus />
+            <ConnectionStatus />
             <Analytics />
           </CartProvider>
         </LanguageProvider>
