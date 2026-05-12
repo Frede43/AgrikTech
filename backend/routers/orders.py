@@ -4,10 +4,13 @@ from typing import List, Optional
 import uuid, random
 from datetime import datetime
 
-import models, schemas, config, utils
-from database import get_db
-from services.payment_service import payment_service
-from services.order_service import order_service
+import backend.models as models
+import backend.schemas as schemas
+import backend.config as config
+import backend.utils as utils
+from backend.database import get_db
+from backend.services.payment_service import payment_service
+from backend.services.order_service import order_service
 
 router = APIRouter(
     prefix="/orders",
@@ -145,7 +148,7 @@ def get_buyer_orders(buyer_id: int, db: Session = Depends(get_db)):
         if product:
             items.append({
                 "name": product.name,
-                "qty": float(o.quantity or 0),
+                "qty": float(str(o.quantity)) if o.quantity is not None else 0.0,
                 "unit": product.unit or "kg",
                 "price": float(str(product.price_per_kg)) if product and product.price_per_kg is not None else 0.0,
                 "lineTotal": float(str(o.total_price)) if o.total_price is not None else 0.0,
@@ -249,7 +252,7 @@ def accept_order(order_id: int, driver_id: int, request: Request, db: Session = 
         raise HTTPException(status_code=400, detail="Cette commande n'est pas disponible à la collecte.")
 
     order.driver_id = user.id
-    order.status = "READY_FOR_PICKUP"
+    order.status = "READY_FOR_PICKUP" # type: ignore
     db.commit()
     return {"message": "Commande acceptée. Bonne livraison !", "order_id": order.id}
 
@@ -265,7 +268,7 @@ def pickup_order(order_id: int, qr_token: str, driver_id: int, db: Session = Dep
     if order.driver_id is not None and int(str(order.driver_id)) != driver_id:
         raise HTTPException(status_code=403, detail="Vous n'êtes pas le livreur assigné à cette commande.")
 
-    order.status = "PICKED_UP"
+    order.status = "PICKED_UP" # type: ignore
     order.driver_id = int(driver_id) # type: ignore
     db.commit()
     return {"message": "Collecté."}
@@ -279,6 +282,6 @@ def deliver_order(order_id: int, otp_code: str, db: Session = Depends(get_db)):
     if order.delivery_otp != otp_code:
         raise HTTPException(status_code=403, detail="OTP invalide.")
 
-    order.status = "COMPLETED"
+    order.status = "COMPLETED" # type: ignore
     payment_service.release_funds_to_farmer(db, order)
     return {"message": "Livré."}

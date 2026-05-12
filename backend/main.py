@@ -3,9 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from database import engine
-import models, config
-from routers import auth, market, admin, products, orders, wallet, disputes, community, categories, stats, users, testimonials, notifications, platform, support, reviews, cart, stock_movements
+from backend.database import engine
+import backend.models as models
+import backend.config as config
+from backend.routers import auth, market, admin, products, orders, wallet, disputes, community, categories, stats, users, testimonials, notifications, platform, support, reviews, cart, stock_movements
 
 app = FastAPI(title="AgriConnect Burundi API", description="Backend pour le projet AgriConnect Burundi")
 

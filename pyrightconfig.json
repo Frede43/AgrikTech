@@ -1,8 +1,11 @@
 {
     "venvPath": ".",
-    "venv": "venv",
+    "venv": ".venv",
     "include": [
         "backend"
+    ],
+    "extraPaths": [
+        "d:/Agri/backend"
     ],
     "pythonVersion": "3.13",
     "reportMissingImports": true,
