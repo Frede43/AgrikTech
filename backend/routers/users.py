@@ -99,6 +99,42 @@ def update_user_profile(user_id: int, payload: schemas.UserUpdate, request: Requ
     db.refresh(user)
     return user
 
+
+@router.post("/kyc/submit", response_model=schemas.User)
+def submit_kyc(payload: schemas.UserKycSubmit, request: Request, db: Session = Depends(get_db)):
+    """
+    Soumet les documents KYC pour vérification.
+    Passe automatiquement le statut à 'pending'.
+    """
+    current_user = utils.get_authenticated_user(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401)
+
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404)
+
+    user.id_number = str(payload.id_number) # type: ignore
+    user.id_document_url = str(payload.id_document_url) # type: ignore
+    user.nationality = str(payload.nationality) # type: ignore
+    user.nif_number = str(payload.nif_number) if payload.nif_number else None # type: ignore
+    user.kyc_status = str("pending") # type: ignore
+    user.kyc_notes = None # type: ignore
+    user.kyc_reviewed_at = None # type: ignore
+
+    # Log action
+    db.add(models.AdminAuditLog(
+        admin_user_id=None,
+        action="KYC_SUBMITTED",
+        entity_type="user",
+        entity_id=user.id,
+        detail=f"Utilisateur {user.name} a soumis ses documents KYC."
+    ))
+
+    db.commit()
+    db.refresh(user)
+    return user
+
 @router.get("/{user_id}/transactions", response_model=List[dict])
 def get_user_transactions(user_id: int, request: Request, db: Session = Depends(get_db)):
     """

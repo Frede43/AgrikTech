@@ -25,106 +25,217 @@ import fastapi
 @router.get("/admin", response_model=schemas.AdminStats)
 def get_admin_stats(request: fastapi.Request, db: Session = Depends(get_db)):
     """
-    Récupère les statistiques globales KPI pour l'administration AgriConnect.
+    KPIs admin AgriConnect : GMV, commissions, growth 30j, conversion/annulation.
     """
-    # Chargement des KPIs (Burundi Admin)
-    print("Chargement des KPIs Admin...")
     from backend.routers.admin import check_admin_auth
     check_admin_auth(request, db)
-    
     from sqlalchemy import func
-    
-    # KPI 1: GMV (Total des ventes payées ou terminées)
+
+    now = utils.utcnow_naive()
+    period_start = now - timedelta(days=30)
+    prev_period_start = now - timedelta(days=60)
+
+    COMPLETED_STATUSES = ["PAID_ESCROW", "COMPLETED", "DELIVERED", "PAID"]
+    ACTIVE_STATUSES = [
+        "PENDING", "PENDING_PAYMENT", "PAID_ESCROW", "CONFIRMED",
+        "READY_FOR_PICKUP", "PICKED_UP", "DISPUTED",
+    ]
+
+    # ── Commission rate ───────────────────────────────────────────────────────
+    settings = db.query(models.SystemSettings).first()
+    commission_rate = Decimal(str(settings.commission_rate)) if settings else config.DEFAULT_COMMISSION_RATE
+
+    # ── GMV ───────────────────────────────────────────────────────────────────
     gmv = db.query(func.sum(models.Order.total_price)).filter(
-        models.Order.status.in_(["PAID", "COMPLETED", "DELIVERED"])
+        models.Order.status.in_(COMPLETED_STATUSES)
     ).scalar() or Decimal("0.0")
-    
-    # KPI 2: Fermiers actifs
+
+    gmv_current = db.query(func.sum(models.Order.total_price)).filter(
+        models.Order.status.in_(COMPLETED_STATUSES),
+        models.Order.created_at >= period_start,
+    ).scalar() or Decimal("0.0")
+
+    gmv_prev = db.query(func.sum(models.Order.total_price)).filter(
+        models.Order.status.in_(COMPLETED_STATUSES),
+        models.Order.created_at >= prev_period_start,
+        models.Order.created_at < period_start,
+    ).scalar() or Decimal("1.0")
+
+    # ── Métriques de commission estimées ──────────────────────────────────────
+    total_commission_estimated = Decimal(str(gmv)) * commission_rate
+    commission_current_period = Decimal(str(gmv_current)) * commission_rate
+
+    # ── Fermiers actifs ───────────────────────────────────────────────────────
     active_farmers = db.query(func.count(models.User.id)).filter(
         models.User.role.in_(config.FARMER_ROLE_VALUES),
-        models.User.is_active == True
+        models.User.is_active == True,
     ).scalar() or 0
-    
-    # KPI 3: Commandes actives (en cours de traitement)
+
+    active_farmers_current = db.query(
+        func.count(func.distinct(models.Order.farmer_id))
+    ).filter(models.Order.created_at >= period_start).scalar() or 0
+
+    active_farmers_prev = db.query(
+        func.count(func.distinct(models.Order.farmer_id))
+    ).filter(
+        models.Order.created_at >= prev_period_start,
+        models.Order.created_at < period_start,
+    ).scalar() or 0
+
+    # ── Commandes actives ─────────────────────────────────────────────────────
     active_orders = db.query(func.count(models.Order.id)).filter(
-        models.Order.status.in_(["PENDING", "PROCESSING", "SHIPPED", "DISPUTED"])
+        models.Order.status.in_(ACTIVE_STATUSES)
     ).scalar() or 0
-    
-    # KPI 4: Retraits complétés
+
+    active_orders_current = db.query(func.count(models.Order.id)).filter(
+        models.Order.status.in_(ACTIVE_STATUSES),
+        models.Order.created_at >= period_start,
+    ).scalar() or 0
+
+    active_orders_prev = db.query(func.count(models.Order.id)).filter(
+        models.Order.status.in_(ACTIVE_STATUSES),
+        models.Order.created_at >= prev_period_start,
+        models.Order.created_at < period_start,
+    ).scalar() or 0
+
+    # ── Retraits ──────────────────────────────────────────────────────────────
     total_payouts = db.query(func.sum(models.WithdrawalRequest.amount)).filter(
         models.WithdrawalRequest.status == "completed"
     ).scalar() or Decimal("0.0")
-    
-    # Retraits en attente
+
+    total_payouts_current = db.query(func.sum(models.WithdrawalRequest.amount)).filter(
+        models.WithdrawalRequest.status == "completed",
+        models.WithdrawalRequest.created_at >= period_start,
+    ).scalar() or Decimal("0.0")
+
+    total_payouts_prev = db.query(func.sum(models.WithdrawalRequest.amount)).filter(
+        models.WithdrawalRequest.status == "completed",
+        models.WithdrawalRequest.created_at >= prev_period_start,
+        models.WithdrawalRequest.created_at < period_start,
+    ).scalar() or Decimal("1.0")
+
     pending_withdrawals = db.query(func.count(models.WithdrawalRequest.id)).filter(
         models.WithdrawalRequest.status == "pending"
     ).scalar() or 0
     pending_amount = db.query(func.sum(models.WithdrawalRequest.amount)).filter(
         models.WithdrawalRequest.status == "pending"
     ).scalar() or Decimal("0.0")
-    
-    # Litiges
-    open_disputes = db.query(func.count(models.Dispute.id)).filter(models.Dispute.status == "open").scalar() or 0
-    resolved_disputes = db.query(func.count(models.Dispute.id)).filter(models.Dispute.status == "resolved").scalar() or 0
-    
-    # Province data (Top provinces par volume de produits/fermiers)
+
+    # ── KPI Growth (% variation 30j vs 30j précédents) ────────────────────────
+    def safe_growth(current: Any, prev: Any) -> float:
+        c = float(str(current or 0))
+        p = float(str(prev or 0))
+        if p == 0:
+            return 100.0 if c > 0 else 0.0
+        return round(((c - p) / p) * 100, 1)
+
+    kpi_growth = {
+        "gmv": safe_growth(gmv_current, gmv_prev),
+        "active_farmers": safe_growth(active_farmers_current, active_farmers_prev),
+        "active_orders": safe_growth(active_orders_current, active_orders_prev),
+        "total_payouts": safe_growth(total_payouts_current, total_payouts_prev),
+    }
+
+    # ── Taux de conversion et d'annulation ────────────────────────────────────
+    total_orders_current = db.query(func.count(models.Order.id)).filter(
+        models.Order.created_at >= period_start,
+    ).scalar() or 1
+
+    completed_current = db.query(func.count(models.Order.id)).filter(
+        models.Order.status.in_(COMPLETED_STATUSES),
+        models.Order.created_at >= period_start,
+    ).scalar() or 0
+
+    cancelled_total = db.query(func.count(models.Order.id)).filter(
+        models.Order.status == "CANCELLED"
+    ).scalar() or 0
+
+    cancelled_current = db.query(func.count(models.Order.id)).filter(
+        models.Order.status == "CANCELLED",
+        models.Order.created_at >= period_start,
+    ).scalar() or 0
+
+    conversion_rate = round((int(str(completed_current)) / int(str(total_orders_current))) * 100, 1)
+    cancellation_rate = round((int(str(cancelled_current)) / int(str(total_orders_current))) * 100, 1)
+
+    # ── Litiges ───────────────────────────────────────────────────────────────
+    open_disputes = db.query(func.count(models.Dispute.id)).filter(
+        models.Dispute.status == "open"
+    ).scalar() or 0
+    resolved_disputes = db.query(func.count(models.Dispute.id)).filter(
+        models.Dispute.status == "resolved"
+    ).scalar() or 0
+
+    # ── Province data ─────────────────────────────────────────────────────────
     province_results = db.query(
-        models.User.province, 
+        models.User.province,
         func.count(models.User.id).label("farmers"),
-    ).filter(models.User.role.in_(config.FARMER_ROLE_VALUES)).group_by(models.User.province).all()
-    
+    ).filter(
+        models.User.role.in_(config.FARMER_ROLE_VALUES)
+    ).group_by(models.User.province).all()
+
     province_data = []
     for p_name, f_count in province_results:
-        # Count pending orders in this province (via product farmer)
-        orders_pending = db.query(models.Order).join(models.User, models.Order.farmer_id == models.User.id).filter(
+        orders_pending = db.query(models.Order).join(
+            models.User, models.Order.farmer_id == models.User.id
+        ).filter(
             models.User.province == p_name,
-            models.Order.status == "PENDING"
+            models.Order.status.in_(ACTIVE_STATUSES),
         ).count()
         province_data.append({
-            "province": p_name or "Inconnue", 
+            "province": p_name or "Inconnue",
             "farmers": f_count,
-            "orders_pending": orders_pending
+            "orders_pending": orders_pending,
         })
-    
-    # Top Farmers
+
+    # ── Top Farmers ───────────────────────────────────────────────────────────
     top_farmers_query = db.query(
         models.User.name,
         models.User.province,
         func.sum(models.Order.total_price).label("gmv"),
-        models.User.rating
+        models.User.rating,
     ).join(models.Order, models.User.id == models.Order.farmer_id).filter(
-        models.Order.status.in_(["PAID", "COMPLETED", "DELIVERED"])
-    ).group_by(models.User.id).order_by(func.sum(models.Order.total_price).desc()).limit(5).all()
-    
-    top_farmers = []
-    for name, prov, gmv_val, rat in top_farmers_query:
-        top_farmers.append({
+        models.Order.status.in_(COMPLETED_STATUSES)
+    ).group_by(models.User.id).order_by(
+        func.sum(models.Order.total_price).desc()
+    ).limit(5).all()
+
+    top_farmers = [
+        {
             "name": name,
             "province": prov or "Inconnue",
-            "gmv": float(gmv_val),
-            "rating": float(rat or 4.5)
-        })
+            "gmv": float(str(gmv_val or 0)),
+            "rating": float(str(rat or 4.5)),
+        }
+        for name, prov, gmv_val, rat in top_farmers_query
+    ]
 
-    # Payouts
-    payout_beneficiaries = db.query(func.count(func.distinct(models.WithdrawalRequest.user_id))).filter(
-        models.WithdrawalRequest.status == "completed"
-    ).scalar() or 0
+    # ── Payouts ───────────────────────────────────────────────────────────────
+    payout_beneficiaries = db.query(
+        func.count(func.distinct(models.WithdrawalRequest.user_id))
+    ).filter(models.WithdrawalRequest.status == "completed").scalar() or 0
+
     payout_releases = db.query(func.count(models.WithdrawalRequest.id)).filter(
         models.WithdrawalRequest.status == "completed"
     ).scalar() or 0
 
-    # Monthly GMV (Simple grouping by month)
+    # ── Monthly GMV (6 derniers mois) ─────────────────────────────────────────
     monthly_results = db.query(
         func.strftime("%Y-%m", models.Order.created_at).label("month"),
-        func.sum(models.Order.total_price).label("gmv")
+        func.sum(models.Order.total_price).label("gmv"),
+        func.count(models.Order.id).label("orders"),
     ).filter(
-        models.Order.status.in_(["PAID", "COMPLETED", "DELIVERED"])
+        models.Order.status.in_(COMPLETED_STATUSES)
     ).group_by("month").order_by("month").limit(6).all()
-    
-    monthly_gmv = [{"month": m, "gmv": float(g)} for m, g in monthly_results]
-    if not monthly_gmv:
-        monthly_gmv = [{"month": "2024-03", "gmv": 0}]
 
+    monthly_gmv = [
+        {"month": m, "gmv": float(str(g or 0)), "orders": int(str(o or 0))}
+        for m, g, o in monthly_results
+    ]
+    if not monthly_gmv:
+        monthly_gmv = [{"month": now.strftime("%Y-%m"), "gmv": 0, "orders": 0}]
+
+    # ── Notifications ─────────────────────────────────────────────────────────
     from backend.routers.notifications import generate_system_notifications
     recent_notifications = generate_system_notifications(db)
 
@@ -133,24 +244,35 @@ def get_admin_stats(request: fastapi.Request, db: Session = Depends(get_db)):
         "active_farmers": active_farmers,
         "active_orders": active_orders,
         "total_payouts": total_payouts,
-        "commission_rate": config.DEFAULT_COMMISSION_RATE,
+        "commission_rate": float(str(commission_rate)),
+        "total_commission_estimated": float(str(total_commission_estimated)),
+        "commission_current_period": float(str(commission_current_period)),
+        "kpi_growth": kpi_growth,
+        "conversion_rate": conversion_rate,
+        "cancellation_rate": cancellation_rate,
+        "cancelled_orders_total": cancelled_total,
+        "cancelled_orders_current_period": cancelled_current,
         "payout_beneficiaries": payout_beneficiaries,
         "payout_releases": payout_releases,
-        "province_data": province_data if province_data else [{"province": "Gitega", "farmers": 0, "orders_pending": 0}],
-        "monthly_gmv": monthly_gmv,
-        "top_farmers": top_farmers, 
-        "recent_notifications": recent_notifications[:5],
-        "open_disputes": open_disputes,
-        "unread_notifications": len([n for n in recent_notifications if not n.get("read")]),
         "pending_withdrawals": pending_withdrawals,
         "pending_withdrawal_amount": pending_amount,
         "completed_withdrawals": payout_releases,
         "completed_withdrawal_amount": total_payouts,
-        "rejected_withdrawals": db.query(func.count(models.WithdrawalRequest.id)).filter(models.WithdrawalRequest.status == "rejected").scalar() or 0,
-        "rejected_withdrawal_amount": db.query(func.sum(models.WithdrawalRequest.amount)).filter(models.WithdrawalRequest.status == "rejected").scalar() or Decimal("0.0"),
+        "rejected_withdrawals": db.query(func.count(models.WithdrawalRequest.id)).filter(
+            models.WithdrawalRequest.status == "rejected"
+        ).scalar() or 0,
+        "rejected_withdrawal_amount": db.query(func.sum(models.WithdrawalRequest.amount)).filter(
+            models.WithdrawalRequest.status == "rejected"
+        ).scalar() or Decimal("0.0"),
         "total_withdrawal_requests": db.query(func.count(models.WithdrawalRequest.id)).scalar() or 0,
         "average_withdrawal_amount": db.query(func.avg(models.WithdrawalRequest.amount)).scalar() or Decimal("0.0"),
-        "in_review_disputes": db.query(func.count(models.Dispute.id)).filter(models.Dispute.status == "in-review").scalar() or 0,
+        "province_data": province_data if province_data else [{"province": "Gitega", "farmers": 0, "orders_pending": 0}],
+        "top_farmers": top_farmers,
+        "monthly_gmv": monthly_gmv,
+        "open_disputes": open_disputes,
+        "in_review_disputes": db.query(func.count(models.Dispute.id)).filter(
+            models.Dispute.status == "in-review"
+        ).scalar() or 0,
         "resolved_disputes": resolved_disputes,
         "high_priority_disputes": db.query(func.count(models.Dispute.id)).filter(models.Dispute.priority == "high").scalar() or 0
     }

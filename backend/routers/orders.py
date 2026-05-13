@@ -287,3 +287,48 @@ def deliver_order(order_id: int, otp_code: str, db: Session = Depends(get_db)):
     payment_service.release_funds_to_farmer(db, order)
     db.commit()
     return {"message": "Livré."}
+
+
+@router.post("/{order_id}/cancel")
+def cancel_order(order_id: int, request: Request, db: Session = Depends(get_db)):
+    """
+    Annule une commande de manière atomique :
+    - Restaure le stock produit avec traçabilité (StockMovement).
+    - Rembourse l'acheteur si les fonds sont en escrow.
+    - Accessible par l'acheteur (avant collecte) ou par un admin.
+    """
+    user = utils.get_authenticated_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+
+    order = (
+        db.query(models.Order)
+        .filter(models.Order.id == order_id)
+        .first()
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail="Commande introuvable.")
+
+    is_admin = utils.user_has_role(user, "admin")
+    is_buyer = cast(int, order.buyer_id) == user.id
+    if not (is_admin or is_buyer):
+        raise HTTPException(status_code=403, detail="Vous ne pouvez annuler que vos propres commandes.")
+
+    # Déterminer l'acteur pour l'audit trail
+    cancelled_by = f"admin:{user.id}" if is_admin else f"buyer:{user.id}"
+
+    try:
+        result = payment_service.cancel_order_and_refund(db, order, cancelled_by=cancelled_by)
+        db.commit()
+        return {
+            "message": "Commande annulée avec succès.",
+            "order_id": utils.format_order_reference(order_id),
+            "refund_amount": result["refund_amount"],
+            "stock_restored": result["stock_restored"],
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'annulation: {str(e)}")

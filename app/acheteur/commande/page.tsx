@@ -116,6 +116,28 @@ export default function CommandePage() {
     return orders.find((candidate) => candidate.id === selectedOrderId) ?? orders[0];
   }, [orders, selectedOrderId]);
 
+  const handleCancelOrder = async () => {
+    if (!order) return;
+    const confirmMsg = lang === "fr" 
+      ? "Êtes-vous sûr de vouloir annuler cette commande ? Le stock sera restauré et vous serez remboursé si le paiement a été effectué."
+      : "Are you sure you want to cancel this order? Stock will be restored and you will be refunded if payment was made.";
+    
+    if (!window.confirm(confirmMsg)) return;
+
+    setLoading(true);
+    try {
+      await apiFetch(`/orders/${order.id}/cancel`, { method: "POST" });
+      await loadLatestOrder();
+      const successMsg = lang === "fr" ? "Commande annulée avec succès." : "Order cancelled successfully.";
+      alert(successMsg);
+    } catch (err: any) {
+      console.error("Cancel order error", err);
+      alert(err.message || "Erreur lors de l'annulation.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const steps = useMemo(() => {
     if (!order) return [];
 
@@ -440,10 +462,24 @@ export default function CommandePage() {
             <span className="text-xl font-black text-primary tracking-tighter">{formatBIF(order.total)}</span>
           </div>
 
-          <Button variant="outline" className="w-full h-12 rounded-xl font-bold bg-background shadow-xs mt-4 gap-2" onClick={() => void loadLatestOrder()}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
-            {text.trackRefresh}
-          </Button>
+          <div className="space-y-3 mt-4">
+            <Button variant="outline" className="w-full h-12 rounded-xl font-bold bg-background shadow-xs gap-2" onClick={() => void loadLatestOrder()}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+              {text.trackRefresh}
+            </Button>
+
+            {["pending", "pending_payment", "paid_escrow", "confirmed", "ready_for_pickup"].includes(normalizedStatus) && (
+              <Button 
+                variant="ghost" 
+                className="w-full h-12 rounded-xl font-bold text-destructive hover:bg-destructive/10 gap-2" 
+                onClick={handleCancelOrder}
+                disabled={loading}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                {lang === "fr" ? "Annuler la commande" : "Cancel Order"}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </BuyerLayout>

@@ -43,6 +43,13 @@ class UserUpdate(BaseModel):
     id_number: Optional[str] = None
     id_document_url: Optional[str] = None
     kyc_status: Optional[str] = None
+    nif_number: Optional[str] = None
+
+class UserKycSubmit(BaseModel):
+    id_number: str
+    id_document_url: str
+    nationality: str = "Burundi"
+    nif_number: Optional[str] = None
 
 class User(UserBase):
     id: int

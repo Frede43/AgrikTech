@@ -19,7 +19,12 @@ type FinanceActionFilter =
   | "WITHDRAWAL_REJECTED"
   | "DISPUTE_REVIEWED"
   | "DISPUTE_REFUND_INITIATED"
-  | "DISPUTE_REJECTED";
+  | "DISPUTE_REJECTED"
+  | "KYC_SUBMITTED"
+  | "KYC_VERIFIED"
+  | "KYC_REJECTED"
+  | "ORDER_CANCELLED"
+  | "DRIVER_ASSIGNED";
 
 interface AdminFinanceAuditItem {
   id: string;
@@ -104,6 +109,16 @@ function getActionLabel(action: string, lang: "fr" | "ki") {
       return lang === "ki" ? "Gusubiza amafaranga vyatangujwe" : "Remboursement lancé";
     case "DISPUTE_REJECTED":
       return lang === "ki" ? "Impari yahakanywe" : "Litige rejeté";
+    case "KYC_SUBMITTED":
+      return lang === "ki" ? "KYC yashikirijwe" : "KYC soumis";
+    case "KYC_VERIFIED":
+      return lang === "ki" ? "KYC yemejwe" : "KYC vérifié";
+    case "KYC_REJECTED":
+      return lang === "ki" ? "KYC yahakanywe" : "KYC rejeté";
+    case "ORDER_CANCELLED":
+      return lang === "ki" ? "Komande yasubitswe" : "Commande annulée";
+    case "DRIVER_ASSIGNED":
+      return lang === "ki" ? "Umushikiriza yashizweho" : "Livreur assigné";
     default:
       return action;
   }
@@ -256,6 +271,11 @@ export default function AdminFinanceAuditsPage() {
           <option value="DISPUTE_REVIEWED">{getActionLabel("DISPUTE_REVIEWED", lang)}</option>
           <option value="DISPUTE_REFUND_INITIATED">{getActionLabel("DISPUTE_REFUND_INITIATED", lang)}</option>
           <option value="DISPUTE_REJECTED">{getActionLabel("DISPUTE_REJECTED", lang)}</option>
+          <option value="KYC_SUBMITTED">{getActionLabel("KYC_SUBMITTED", lang)}</option>
+          <option value="KYC_VERIFIED">{getActionLabel("KYC_VERIFIED", lang)}</option>
+          <option value="KYC_REJECTED">{getActionLabel("KYC_REJECTED", lang)}</option>
+          <option value="ORDER_CANCELLED">{getActionLabel("ORDER_CANCELLED", lang)}</option>
+          <option value="DRIVER_ASSIGNED">{getActionLabel("DRIVER_ASSIGNED", lang)}</option>
         </select>
       </div>
 

@@ -89,6 +89,14 @@ const overviewCopy = {
     inReview: "En revue",
     resolved: "Résolus",
     highPriority: "Priorité haute",
+    performanceQuality: "Performance & Qualité",
+    conversionRate: "Taux de conversion",
+    cancellationRate: "Taux d'annulation",
+    commissionRevenue: "Revenus commission",
+    commissionPeriod: "Ce mois (est.)",
+    totalCommission: "Total cumulé (est.)",
+    cancelledOrders: "Commandes annulées",
+    allTime: "Depuis le début",
   },
   ki: {
     loadingTitle: "Biriko birapakururwa...",
@@ -133,6 +141,14 @@ const overviewCopy = {
     inReview: "Ziri gusuzumwa",
     resolved: "Zakemuwe",
     highPriority: "Ihuta",
+    performanceQuality: "Umusaruro & Ubuziranenge",
+    conversionRate: "Igipimo cy'igurisha",
+    cancellationRate: "Igipimo cy'isubika",
+    commissionRevenue: "Inyungu za komidiyo",
+    commissionPeriod: "Uyu kwezi",
+    totalCommission: "Inyungu zose",
+    cancelledOrders: "Amasezerano yasubitswe",
+    allTime: "Kuva kera",
   },
 } as const;
 
@@ -264,6 +280,43 @@ export default function AdminOverviewPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Performance & Quality Indicators */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-border bg-gradient-to-br from-card to-primary/5">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{copy.conversionRate}</p>
+              <p className="text-xl font-bold text-foreground">{data.conversion_rate}%</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-gradient-to-br from-card to-destructive/5">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+              <RefreshCw className="w-5 h-5 text-destructive" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{copy.cancellationRate}</p>
+              <p className="text-xl font-bold text-foreground">{data.cancellation_rate}%</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-gradient-to-br from-card to-emerald-500/5">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+              <Star className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{copy.commissionRevenue}</p>
+              <p className="text-xl font-bold text-foreground">{formatBIF(data.commission_current_period)}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

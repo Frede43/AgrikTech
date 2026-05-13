@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, cast
 from datetime import datetime
 
 import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
@@ -11,7 +11,9 @@ router = APIRouter(
     tags=["Administration"]
 )
 
-def check_admin_auth(request: Request, db: Session):
+def check_admin_auth(request: Optional[Request], db: Session):
+    if request is None:
+        raise HTTPException(status_code=401, detail="Session context missing.")
     user = utils.get_authenticated_user(request, db)
     if not user:
         raise HTTPException(status_code=401, detail="Session requise.")
@@ -25,7 +27,7 @@ def verify_kyc(
     user_id: int, 
     status: str, # 'verified' or 'rejected'
     notes: Optional[str] = None,
-    request: Request = None,
+    request: Request = None, # type: ignore
     db: Session = Depends(get_db)
 ):
     """
@@ -41,9 +43,9 @@ def verify_kyc(
     if status not in ["verified", "rejected", "pending"]:
         raise HTTPException(status_code=400, detail="Statut KYC invalide")
         
-    user.kyc_status = status
-    user.kyc_notes = notes
-    user.kyc_reviewed_at = utils.utcnow_naive()
+    user.kyc_status = str(status) # type: ignore
+    user.kyc_notes = notes # type: ignore
+    user.kyc_reviewed_at = utils.utcnow_naive() # type: ignore
     
     # Audit log
     db.add(models.AdminAuditLog(
@@ -80,28 +82,33 @@ def list_withdrawals(request: Request, db: Session = Depends(get_db)):
         # Build audit trail (mocked or from logs if they were persistent)
         # For now, let's just use the basic model data
         results.append(schemas.AdminWithdrawalSummary(
-            id=f"WDR-{w.id:05d}",
-            dbId=w.id,
-            farmerId=w.user_id,
-            farmerName=w.user.name if w.user else "Inconnu",
-            farmerPhoneNumber=w.user.phone_number if w.user else None,
-            province=w.user.province if w.user else None,
-            amount=w.amount,
-            channel=w.channel,
-            phoneNumber=w.phone_number,
-            status=w.status,
-            note=w.note,
+            id=f"WDR-{int(str(w.id)):05d}",
+            dbId=int(str(w.id)),
+            farmerId=int(str(w.user_id)),
+            farmerName=str(w.user.name) if w.user else "Inconnu",
+            farmerPhoneNumber=str(w.user.phone_number) if w.user else None,
+            province=str(w.user.province) if w.user else None,
+            amount=float(str(w.amount)),
+            channel=str(w.channel),
+            phoneNumber=str(w.phone_number),
+            status=str(w.status),
+            note=str(w.note) if w.note else None,
             createdAt=w.created_at.isoformat(),
             processedAt=w.processed_at.isoformat() if w.processed_at else None,
-            processedByUserId=w.processed_by_user_id,
-            processedByName=w.processed_by.name if w.processed_by else None,
+            processedByUserId=int(str(w.processed_by_user_id)) if w.processed_by_user_id else None,
+            processedByName=str(w.processed_by.name) if w.processed_by else None,
             auditTrail=[] # Serait peuplé par admin_audit_logs filtrés
         ))
     return results
 
 @router.post("/withdrawals/{withdrawal_id}/approve")
 @router.post("/withdrawals/{withdrawal_id}/approve/")
-def approve_withdrawal(withdrawal_id: int, payload: schemas.AdminActionRequest, request: Request, db: Session = Depends(get_db)):
+def approve_withdrawal(
+    withdrawal_id: int,
+    payload: schemas.AdminActionRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """
     Approuve manuellement une demande de retrait.
     """
@@ -113,10 +120,11 @@ def approve_withdrawal(withdrawal_id: int, payload: schemas.AdminActionRequest, 
     if w.status != "pending":
         raise HTTPException(status_code=400, detail="Ce retrait a déjà été traité")
         
-    w.status = "completed"
-    w.processed_at = utils.utcnow_naive()
-    w.processed_by_user_id = admin.id
-    w.note = payload.note
+    w = cast(models.WithdrawalRequest, w)
+    w.status = str("completed") # type: ignore
+    w.processed_at = utils.utcnow_naive() # type: ignore
+    w.processed_by_user_id = int(str(admin.id)) # type: ignore
+    w.note = str(payload.note) if payload.note else None # type: ignore
     
     db.add(models.AdminAuditLog(
         admin_user_id=admin.id,
@@ -131,7 +139,12 @@ def approve_withdrawal(withdrawal_id: int, payload: schemas.AdminActionRequest, 
 
 @router.post("/withdrawals/{withdrawal_id}/reject")
 @router.post("/withdrawals/{withdrawal_id}/reject/")
-def reject_withdrawal(withdrawal_id: int, payload: schemas.AdminActionRequest, request: Request, db: Session = Depends(get_db)):
+def reject_withdrawal(
+    withdrawal_id: int,
+    payload: schemas.AdminActionRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """
     Rejette une demande de retrait et recrédite l'ikigega de l'utilisateur.
     """
@@ -152,10 +165,11 @@ def reject_withdrawal(withdrawal_id: int, payload: schemas.AdminActionRequest, r
             amount=w.amount
         ))
         
-    w.status = "rejected"
-    w.processed_at = utils.utcnow_naive()
-    w.processed_by_user_id = admin.id
-    w.note = payload.note
+    w = cast(models.WithdrawalRequest, w)
+    w.status = str("rejected") # type: ignore
+    w.processed_at = utils.utcnow_naive() # type: ignore
+    w.processed_by_user_id = int(str(admin.id)) # type: ignore
+    w.note = str(payload.note) if payload.note else None # type: ignore
     
     db.add(models.AdminAuditLog(
         admin_user_id=admin.id,
@@ -180,28 +194,33 @@ def list_admin_testimonials(request: Request, db: Session = Depends(get_db)):
     for t in testimonials:
         results.append(schemas.AdminTestimonialSummary(
             id=f"TESTI-{t.id:05d}",
-            dbId=t.id,
-            userId=t.user_id,
-            authorName=t.author_name,
-            authorRoleFr=t.author_role_fr,
-            authorRoleKi=t.author_role_ki,
-            location=t.location,
-            quoteFr=t.quote_fr,
-            quoteKi=t.quote_ki,
-            rating=t.rating,
-            status=t.status,
-            adminNote=t.admin_note,
-            createdAt=t.created_at.isoformat(),
+            dbId=int(str(t.id)),
+            userId=int(str(t.user_id)) if t.user_id else None,
+            authorName=str(t.author_name),
+            authorRoleFr=str(t.author_role_fr),
+            authorRoleKi=str(t.author_role_ki),
+            location=str(t.location) if t.location else None,
+            quoteFr=str(t.quote_fr),
+            quoteKi=str(t.quote_ki),
+            rating=float(str(t.rating)),
+            status=str(t.status),
+            adminNote=str(t.admin_note) if t.admin_note else None,
+            createdAt=t.created_at.isoformat() if t.created_at else str(""),
             reviewedAt=t.reviewed_at.isoformat() if t.reviewed_at else None,
-            reviewedByUserId=t.reviewed_by_user_id,
-            reviewedByName=t.reviewed_by.name if t.reviewed_by else None,
-            auditTrail=[] # Pourrait être peuplé via AdminAuditLog
+            reviewedByUserId=int(str(t.reviewed_by_user_id)) if t.reviewed_by_user_id else None,
+            reviewedByName=str(t.reviewed_by.name) if t.reviewed_by else None,
+            auditTrail=[]
         ))
     return results
 
 @router.post("/testimonials/{testimonial_id}/approve")
 @router.post("/testimonials/{testimonial_id}/approve/")
-def approve_testimonial(testimonial_id: int, payload: schemas.AdminActionRequest, request: Request, db: Session = Depends(get_db)):
+def approve_testimonial(
+    testimonial_id: int,
+    payload: schemas.AdminActionRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """
     Approuve un témoignage pour qu'il soit visible sur le site.
     """
@@ -210,10 +229,10 @@ def approve_testimonial(testimonial_id: int, payload: schemas.AdminActionRequest
     if not t:
         raise HTTPException(status_code=404, detail="Témoignage introuvable")
     
-    t.status = "approved"
-    t.reviewed_at = utils.utcnow_naive()
-    t.reviewed_by_user_id = admin.id
-    t.admin_note = payload.note
+    t.status = str("approved") # type: ignore
+    t.reviewed_at = utils.utcnow_naive() # type: ignore
+    t.reviewed_by_user_id = int(str(admin.id)) # type: ignore
+    t.admin_note = str(payload.note) if payload.note else None # type: ignore
     
     db.add(models.AdminAuditLog(
         admin_user_id=admin.id,
@@ -228,7 +247,12 @@ def approve_testimonial(testimonial_id: int, payload: schemas.AdminActionRequest
 
 @router.post("/testimonials/{testimonial_id}/reject")
 @router.post("/testimonials/{testimonial_id}/reject/")
-def reject_testimonial(testimonial_id: int, payload: schemas.AdminActionRequest, request: Request, db: Session = Depends(get_db)):
+def reject_testimonial(
+    testimonial_id: int,
+    payload: schemas.AdminActionRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """
     Refuse un témoignage.
     """
@@ -237,10 +261,10 @@ def reject_testimonial(testimonial_id: int, payload: schemas.AdminActionRequest,
     if not t:
         raise HTTPException(status_code=404, detail="Témoignage introuvable")
     
-    t.status = "rejected"
-    t.reviewed_at = utils.utcnow_naive()
-    t.reviewed_by_user_id = admin.id
-    t.admin_note = payload.note
+    t.status = str("rejected") # type: ignore
+    t.reviewed_at = utils.utcnow_naive() # type: ignore
+    t.reviewed_by_user_id = int(str(admin.id)) # type: ignore
+    t.admin_note = str(payload.note) if payload.note else None # type: ignore
     
     db.add(models.AdminAuditLog(
         admin_user_id=admin.id,
@@ -263,7 +287,6 @@ def get_admin_settings(request: Request, db: Session = Depends(get_db)):
     
     settings = db.query(models.SystemSettings).first()
     if not settings:
-        # Initialisation par défaut si vide (First Run)
         settings = models.SystemSettings(
             commission_rate=0.05,
             maintenance_mode=False,
@@ -274,7 +297,6 @@ def get_admin_settings(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(settings)
         
-    # On récupère aussi la liste des autres admins
     admins = db.query(models.User).filter(models.User.role.in_(config.ADMIN_ROLE_VALUES)).all()
     admin_list = []
     for a in admins:
@@ -287,7 +309,7 @@ def get_admin_settings(request: Request, db: Session = Depends(get_db)):
         })
         
     return {
-        "commission_rate": float(settings.commission_rate),
+        "commission_rate": float(str(settings.commission_rate)),
         "maintenance_mode": settings.maintenance_mode,
         "support_phone": settings.support_phone,
         "support_whatsapp": settings.support_whatsapp,
@@ -311,7 +333,6 @@ def update_admin_settings(payload: schemas.AdminSettingsUpdate, request: Request
     for field, value in update_data.items():
         setattr(settings, field, value)
         
-    # Log the action
     db.add(models.AdminAuditLog(
         admin_user_id=admin.id,
         action="SETTINGS_UPDATED",
@@ -330,19 +351,16 @@ def add_admin_agent(payload: schemas.UserCreate, request: Request, db: Session =
     """
     admin = check_admin_auth(request, db)
     
-    # Vérification si utilisateur existe déjà
     existing = db.query(models.User).filter(models.User.phone_number == payload.phone_number).first()
     if existing:
         if existing.role == "admin":
             raise HTTPException(status_code=400, detail="Ce numéro est déjà admin.")
-        # On le promeut
-        existing.role = "admin"
+        existing.role = str("admin") # type: ignore
         db.commit()
         return {"message": "Utilisateur promu en administrateur"}
 
-    # Sinon création complète
     from backend.services.user_service import persist_user
-    payload.role = "admin" # On force le role
+    payload.role = "admin" 
     new_admin = persist_user(payload, db)
     
     db.add(models.AdminAuditLog(
@@ -360,7 +378,7 @@ def list_finance_audits(
     entity_type: Optional[str] = None,
     action: Optional[str] = None,
     q: Optional[str] = None,
-    request: Request = None,
+    request: Request = None, # type: ignore
     db: Session = Depends(get_db)
 ):
     """
@@ -368,50 +386,67 @@ def list_finance_audits(
     """
     check_admin_auth(request, db)
     
+    query = db.query(models.AdminAuditLog)
+    
+    if entity_type and entity_type != "all":
+        query = query.filter(models.AdminAuditLog.entity_type == entity_type)
+    
+    if action and action != "all":
+        query = query.filter(models.AdminAuditLog.action == action)
+        
+    if q:
+        query = query.filter(models.AdminAuditLog.detail.contains(q))
+        
     audits = (
-        db.query(models.AdminAuditLog)
-        .order_by(models.AdminAuditLog.timestamp.desc())
-        .limit(60)
+        query.order_by(models.AdminAuditLog.timestamp.desc())
+        .limit(100)
         .all()
     )
     
     items = []
     for a in audits:
+        tone = "neutral"
+        if any(x in a.action for x in ["APPROVED", "VERIFIED", "COMPLETED", "SUCCESS"]):
+            tone = "success"
+        elif any(x in a.action for x in ["REJECTED", "CANCELLED", "FAILED", "DISPUTE"]):
+            tone = "danger"
+        elif any(x in a.action for x in ["PENDING", "REQUESTED", "SUBMITTED", "REVIEW"]):
+            tone = "warning"
+        elif any(x in a.action for x in ["CREATED", "ASSIGNED"]):
+            tone = "info"
+
         items.append(schemas.AdminFinanceAuditItem(
             id=str(a.id),
-            action=a.action,
-            title=a.action.replace("_", " ").title(),
-            detail=a.detail,
-            actorName=a.admin_user.name if a.admin_user else "Système",
+            action=str(a.action),
+            title=str(a.action).replace("_", " ").title(),
+            detail=str(a.detail),
+            actorName=str(a.admin_user.name) if a.admin_user else "Système",
             createdAt=a.timestamp.isoformat(),
-            tone="info" if "APPROVED" in a.action else "neutral",
-            entityType=a.entity_type or "system",
-            entityId=a.entity_id,
-            reference=f"REF-{a.id:04d}",
-            priority="medium",
+            tone=tone,
+            entityType=str(a.entity_type) or "system",
+            entityId=int(str(a.entity_id)) if a.entity_id else None,
+            reference=f"REF-{int(str(a.id)):04d}",
+            priority="high" if tone == "danger" else "medium" if tone == "warning" else "low",
             status=None
         ))
         
+    all_items = query.limit(500).all()
+    
     return schemas.AdminFinanceAuditResponse(
         items=items,
         summary={
             "total": len(items),
-            "withdrawalEvents": len([i for i in items if "WITHDRAWAL" in i.action]),
-            "disputeEvents": len([i for i in items if "DISPUTE" in i.action]),
-            "highPriorityEvents": 0,
-            "pendingWithdrawalEvents": 0
+            "withdrawalEvents": len([a for a in all_items if "WITHDRAWAL" in (a.action or "")]),
+            "disputeEvents": len([a for a in all_items if "DISPUTE" in (a.action or "")]),
+            "highPriorityEvents": len([a for a in all_items if any(x in (a.action or "") for x in ["REJECTED", "CANCELLED", "FAILED", "DISPUTE"])]),
+            "pendingWithdrawalEvents": len([a for a in all_items if "WITHDRAWAL" in (a.action or "") and "REQUESTED" in (a.action or "")])
         }
     )
-
-
-# ─────────────────────────────────────────
-# GESTION DES LIVRAISONS (DISPATCH)
-# ─────────────────────────────────────────
 
 @router.get("/orders/logistics")
 def admin_get_logistics_orders(
     status_filter: Optional[str] = None,
-    request: Request = None,
+    request: Request = None, # type: ignore
     db: Session = Depends(get_db)
 ):
     """Liste toutes les commandes avec détail fermier, livreur et acheteur pour le tableau de dispatch admin."""
@@ -435,46 +470,45 @@ def admin_get_logistics_orders(
         buyer = o.buyer
 
         results.append({
-            "id": o.id,
-            "orderId": utils.format_order_reference(o.id),
-            "status": o.status,
-            "statusLabel": utils.serialize_order_status(o.status),
+            "id": int(str(o.id)),
+            "orderId": utils.format_order_reference(int(str(o.id))),
+            "status": str(o.status),
+            "statusLabel": utils.serialize_order_status(str(o.status)),
             "placedAt": o.created_at.strftime("%d/%m/%Y %Hh%M") if o.created_at else "—",
             "product": {
-                "name": product.name if product else "—",
-                "qty": float(o.quantity or 0),
-                "unit": product.unit if product else "kg",
-                "province": farmer.province if farmer else "—",
+                "name": str(product.name) if product else "—",
+                "qty": float(str(o.quantity or 0)),
+                "unit": str(product.unit) if product else "kg",
+                "province": str(farmer.province) if farmer else "—",
             },
             "farmer": {
-                "id": farmer.id if farmer else None,
-                "name": farmer.name if farmer else "—",
-                "phone": farmer.phone_number if farmer else "—",
-                "province": farmer.province if farmer else "—",
+                "id": int(str(farmer.id)) if farmer else None,
+                "name": str(farmer.name) if farmer else "—",
+                "phone": str(farmer.phone_number) if farmer else "—",
+                "province": str(farmer.province) if farmer else "—",
             },
             "buyer": {
-                "id": buyer.id if buyer else None,
-                "name": buyer.name if buyer else "—",
-                "phone": buyer.phone_number if buyer else "—",
+                "id": int(str(buyer.id)) if buyer else None,
+                "name": str(buyer.name) if buyer else "—",
+                "phone": str(buyer.phone_number) if buyer else "—",
             },
             "driver": {
-                "id": driver.id if driver else None,
-                "name": driver.name if driver else None,
-                "phone": driver.phone_number if driver else None,
+                "id": int(str(driver.id)) if driver else None,
+                "name": str(driver.name) if driver else None,
+                "phone": str(driver.phone_number) if driver else None,
             },
-            "total": float(o.total_price or 0),
-            "pickup_qr": o.pickup_qr_token or "—",
-            "delivery_otp": o.delivery_otp or "—",
+            "total": float(str(o.total_price or 0)),
+            "pickup_qr": str(o.pickup_qr_token) or "—",
+            "delivery_otp": str(o.delivery_otp) or "—",
         })
 
     return results
 
-
 @router.put("/orders/{order_id}/assign-driver")
 def admin_assign_driver(
     order_id: int,
-    driver_id: Optional[int] = None,  # None = désassigner
-    request: Request = None,
+    driver_id: Optional[int] = None,
+    request: Request = None, # type: ignore
     db: Session = Depends(get_db)
 ):
     """Assigne ou ré-assigne (ou désassigne) un livreur à une commande."""
@@ -495,21 +529,21 @@ def admin_assign_driver(
         if not new_driver:
             raise HTTPException(status_code=404, detail="Livreur introuvable ou rôle incorrect.")
 
-    order.driver_id = driver_id
+    order.driver_id = int(str(driver_id)) if driver_id else None # type: ignore
     if driver_id is not None and order.status in ["PAID_ESCROW", "PENDING_PAYMENT"]:
-        order.status = "READY_FOR_PICKUP"
+        order.status = str("READY_FOR_PICKUP") # type: ignore
 
     # Audit log
     action_detail = (
-        f"Admin reassigned order {utils.format_order_reference(order.id)}: "
+        f"Admin reassigned order {utils.format_order_reference(int(str(order.id)))}: "
         f"driver {old_driver_id} → {driver_id} ({new_driver.name if new_driver else 'unassigned'})"
     )
     db.add(models.AdminAuditLog(
-        admin_user_id=admin.id,
-        action="DRIVER_ASSIGNED" if driver_id else "DRIVER_UNASSIGNED",
+        admin_user_id=int(str(admin.id)),
+        action=str("DRIVER_ASSIGNED" if driver_id else "DRIVER_UNASSIGNED"),
         entity_type="order",
-        entity_id=order_id,
-        detail=action_detail,
+        entity_id=int(str(order_id)),
+        detail=str(action_detail),
     ))
 
     db.commit()
@@ -522,7 +556,7 @@ def admin_assign_driver(
 
 
 @router.get("/drivers")
-def admin_get_drivers(request: Request = None, db: Session = Depends(get_db)):
+def admin_get_drivers(request: Request, db: Session = Depends(get_db)):
     """Liste tous les livreurs disponibles pour le dispatch."""
     check_admin_auth(request, db)
     drivers = db.query(models.User).filter(models.User.role == "logistique", models.User.is_active == True).all()
