@@ -5,7 +5,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./agriconnect.db")
+# Déterminer le chemin de la base de données (toujours dans le dossier backend)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+db_path = os.path.join(BASE_DIR, "agriconnect.db")
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{db_path}")
 
 # Fix for Heroku/Render where DATABASE_URL starts with postgres://
 if DATABASE_URL.startswith("postgres://"):

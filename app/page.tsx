@@ -128,6 +128,7 @@ export default function LandingPage() {
   const { lang, text } = useLanguage();
   const [slide, setSlide] = useState(0);
   const [testimonialRecords, setTestimonialRecords] = useState<PublicTestimonial[]>([]);
+  const [publicStats, setPublicStats] = useState({ farmer_count: 1200, province_count: 9 });
   const { prices, loading: pricesLoading } = useLivePrices();
   const fallbackHeroSlides: HeroSlide[] = lang === "fr"
     ? [
@@ -210,9 +211,10 @@ export default function LandingPage() {
         ? copy.heroInsightDown
         : copy.heroInsightStable
     : copy.heroLiveTitle;
-  const socialProofLabel = activeMarket
-    ? `${text.socialProof} · ${prices.length} ${copy.heroLiveProducts}`
-    : text.socialProof;
+  const socialProofLabel = text.socialProof
+    .replace("{count}", (publicStats.farmer_count || 1200).toLocaleString())
+    .replace("{provinces}", String(publicStats.province_count || 9))
+    + (activeMarket ? ` · ${prices.length} ${copy.heroLiveProducts}` : "");
 
   // Auto-advance carousel
   useEffect(() => {
@@ -241,6 +243,15 @@ export default function LandingPage() {
     };
 
     loadTestimonials();
+    
+    // Load public stats
+    apiFetch("/stats/public")
+      .then(data => {
+        if (active && data && typeof data.farmer_count === "number") {
+          setPublicStats(data);
+        }
+      })
+      .catch(() => { /* Silent fallback */ });
 
     return () => {
       active = false;

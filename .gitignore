@@ -7,14 +7,29 @@ __v0_jsx-dev-runtime.ts
 node_modules/
 .next/
 .env*
+!.env.example
+!.env.local.example
+!**/.env.example
 .DS_Store
 
 # Python
 __pycache__/
 *.py[cod]
 .venv/
+venv/
 backend/venv/
-backend/*.db
+
+# Bases de données locales et logs
+*.db
 backend/*.log
+uvicorn_logs.txt
+backend/uvicorn_logs.txt
+
+# Uploads locaux (photos produits, documents KYC)
+static/uploads/
+backend/static/uploads/
+
+# Tests
 playwright-report/
 test-results/
+tsconfig.tsbuildinfo

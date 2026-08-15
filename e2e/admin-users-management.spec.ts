@@ -10,25 +10,25 @@ test("admin can consult and filter users", async ({ page, request }) => {
   const seed = createE2eSeed();
   const marker = `AdminBatch${seed}`;
 
-  const adminResponse = await request.post(`${API_URL}/users/`, {
+  const adminResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("71", seed), role: "admin", name: `Admin ${marker}`, province: "Bujumbura" },
   });
   expect(adminResponse.ok()).toBeTruthy();
   const admin = (await adminResponse.json()) as { id: number };
 
-  const farmerResponse = await request.post(`${API_URL}/users/`, {
+  const farmerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("61", seed), role: "farmer", name: `Fermier ${marker}`, province: "Ngozi" },
   });
   expect(farmerResponse.ok()).toBeTruthy();
   const farmer = (await farmerResponse.json()) as { id: number; phone_number: string };
 
-  const buyerResponse = await request.post(`${API_URL}/users/`, {
+  const buyerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("79", seed), role: "buyer", name: `Acheteur ${marker}`, province: "Gitega" },
   });
   expect(buyerResponse.ok()).toBeTruthy();
   const buyer = (await buyerResponse.json()) as { id: number };
 
-  const driverResponse = await request.post(`${API_URL}/users/`, {
+  const driverResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("68", seed), role: "driver", name: `Livreur ${marker}`, province: "Kirundo" },
   });
   expect(driverResponse.ok()).toBeTruthy();
@@ -47,7 +47,7 @@ test("admin can consult and filter users", async ({ page, request }) => {
   const searchInput = page.getByPlaceholder("Rechercher par nom, téléphone, province...");
   await searchInput.fill(marker);
 
-  await expect(page.getByText("4 utilisateurs affichés")).toBeVisible();
+  await expect(page.getByText("4 utilisateur(s) affiché(s)")).toBeVisible();
   const farmerRow = userRow(page, `Fermier ${marker}`);
   const buyerRow = userRow(page, `Acheteur ${marker}`);
   const driverRow = userRow(page, `Livreur ${marker}`);
@@ -59,7 +59,7 @@ test("admin can consult and filter users", async ({ page, request }) => {
   await expect(adminRow).toBeVisible();
 
   await page.getByRole("button", { name: /^Fermier\s+\d+$/ }).click();
-  await expect(page.getByText("1 utilisateur affiché")).toBeVisible();
+  await expect(page.getByText("1 utilisateur(s) affiché(s)")).toBeVisible();
   await expect(farmerRow).toBeVisible();
   await expect(farmerRow).toContainText("Ngozi");
   await expect(farmerRow.getByRole("button", { name: "Suspendre" })).toBeVisible();
@@ -71,7 +71,7 @@ test("admin can consult and filter users", async ({ page, request }) => {
   await suspendResponsePromise;
   await expect(farmerRow.getByRole("button", { name: "Réactiver" })).toBeVisible();
 
-  const suspendedUsersResponse = await request.get(`${API_URL}/users`);
+  const suspendedUsersResponse = await request.get(`${API_URL}/testing/users`);
   expect(suspendedUsersResponse.ok()).toBeTruthy();
   const suspendedUsers = (await suspendedUsersResponse.json()) as Array<{ id: number; is_active: boolean }>;
   expect(suspendedUsers.some((user) => user.id === farmer.id && user.is_active === false)).toBe(true);
@@ -83,29 +83,29 @@ test("admin can consult and filter users", async ({ page, request }) => {
   await reactivateResponsePromise;
   await expect(farmerRow.getByRole("button", { name: "Suspendre" })).toBeVisible();
 
-  const reactivatedUsersResponse = await request.get(`${API_URL}/users`);
+  const reactivatedUsersResponse = await request.get(`${API_URL}/testing/users`);
   expect(reactivatedUsersResponse.ok()).toBeTruthy();
   const reactivatedUsers = (await reactivatedUsersResponse.json()) as Array<{ id: number; is_active: boolean }>;
   expect(reactivatedUsers.some((user) => user.id === farmer.id && user.is_active === true)).toBe(true);
 
   await page.getByRole("button", { name: /^Acheteur\s+\d+$/ }).click();
-  await expect(page.getByText("1 utilisateur affiché")).toBeVisible();
+  await expect(page.getByText("1 utilisateur(s) affiché(s)")).toBeVisible();
   await expect(buyerRow).toBeVisible();
   await expect(buyerRow).toContainText("Gitega");
 
   await page.getByRole("button", { name: /^Livreur\s+\d+$/ }).click();
-  await expect(page.getByText("1 utilisateur affiché")).toBeVisible();
+  await expect(page.getByText("1 utilisateur(s) affiché(s)")).toBeVisible();
   await expect(driverRow).toBeVisible();
   await expect(driverRow).toContainText("Kirundo");
 
   await page.getByRole("button", { name: /^Tous\s+\d+$/ }).click();
-  await expect(page.getByText("4 utilisateurs affichés")).toBeVisible();
+  await expect(page.getByText("4 utilisateur(s) affiché(s)")).toBeVisible();
 
   await searchInput.fill(farmer.phone_number);
-  await expect(page.getByText("1 utilisateur affiché")).toBeVisible();
+  await expect(page.getByText("1 utilisateur(s) affiché(s)")).toBeVisible();
   await expect(farmerRow).toBeVisible();
 
-  const allUsersResponse = await request.get(`${API_URL}/users`);
+  const allUsersResponse = await request.get(`${API_URL}/testing/users`);
   expect(allUsersResponse.ok()).toBeTruthy();
   const allUsers = (await allUsersResponse.json()) as Array<{
     id: number;
@@ -126,7 +126,7 @@ test("admin can create edit and delete a managed user", async ({ page, request }
   const seed = createE2eSeed();
   const marker = `Crud${seed}`;
 
-  const adminResponse = await request.post(`${API_URL}/users/`, {
+  const adminResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("72", seed), role: "admin", name: `Admin ${marker}`, province: "Bujumbura" },
   });
   expect(adminResponse.ok()).toBeTruthy();
@@ -176,7 +176,7 @@ test("admin can create edit and delete a managed user", async ({ page, request }
   await expect(updatedRow).toBeVisible();
   await expect(updatedRow).toContainText("Kirundo");
 
-  const allUsersAfterUpdate = await request.get(`${API_URL}/users`);
+  const allUsersAfterUpdate = await request.get(`${API_URL}/testing/users`);
   expect(allUsersAfterUpdate.ok()).toBeTruthy();
   const updatedUsers = (await allUsersAfterUpdate.json()) as Array<{ name: string; phone_number: string; role: string }>;
   expect(updatedUsers.some((user) => user.name === updatedName && user.phone_number === updatedPhone && user.role === "logistique")).toBe(true);
@@ -191,7 +191,7 @@ test("admin can create edit and delete a managed user", async ({ page, request }
 
   await expect(page.locator("tbody tr").filter({ hasText: updatedName })).toHaveCount(0);
 
-  const allUsersAfterDelete = await request.get(`${API_URL}/users`);
+  const allUsersAfterDelete = await request.get(`${API_URL}/testing/users`);
   expect(allUsersAfterDelete.ok()).toBeTruthy();
   const remainingUsers = (await allUsersAfterDelete.json()) as Array<{ name: string; phone_number: string }>;
   expect(remainingUsers.some((user) => user.name === updatedName || user.phone_number === updatedPhone)).toBe(false);
@@ -205,24 +205,24 @@ test("admin sees linked-user delete refusal without frontend console error", asy
   const adminPhone = createPhoneNumber("73", seed);
   const farmerName = `Fermier Lié ${marker}`;
 
-  const adminResponse = await request.post(`${API_URL}/users/`, {
+  const adminResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: adminPhone, role: "admin", name: `Admin ${marker}`, province: "Bujumbura" },
   });
   expect(adminResponse.ok()).toBeTruthy();
 
-  const farmerResponse = await request.post(`${API_URL}/users/`, {
+  const farmerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("65", seed), role: "farmer", name: farmerName, province: "Ngozi" },
   });
   expect(farmerResponse.ok()).toBeTruthy();
   const farmer = (await farmerResponse.json()) as { id: number };
 
-  const buyerResponse = await request.post(`${API_URL}/users/`, {
+  const buyerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("74", seed), role: "buyer", name: `Acheteur Lié ${marker}`, province: "Gitega" },
   });
   expect(buyerResponse.ok()).toBeTruthy();
   const buyer = (await buyerResponse.json()) as { id: number };
 
-  const productResponse = await request.post(`${API_URL}/products/?farmer_id=${farmer.id}`, {
+  const productResponse = await request.post(`${API_URL}/testing/products/?farmer_id=${farmer.id}`, {
     data: {
       name: `Choux ${marker}`,
       category: "legumes",
@@ -235,7 +235,7 @@ test("admin sees linked-user delete refusal without frontend console error", asy
   expect(productResponse.ok()).toBeTruthy();
   const product = (await productResponse.json()) as { id: number };
 
-  const orderResponse = await request.post(`${API_URL}/orders/?buyer_id=${buyer.id}`, {
+  const orderResponse = await request.post(`${API_URL}/testing/orders/?buyer_id=${buyer.id}`, {
     data: {
       product_id: product.id,
       quantity: 2,

@@ -1,7 +1,7 @@
 from fastapi import HTTPException, Response, Request
 from sqlalchemy.orm import Session
 import secrets
-from typing import Optional
+from typing import Optional, cast
 from datetime import UTC, datetime, timedelta
 from math import asin, cos, radians, sin, sqrt
 
@@ -18,7 +18,7 @@ def normalize_role(role: Optional[str]) -> Optional[str]:
 def user_has_role(user: Optional[models.User], *roles: str) -> bool:
     if not user:
         return False
-    normalized_role = normalize_role(user.role)
+    normalized_role = normalize_role(cast(str, user.role))
     normalized_targets = {normalize_role(role) for role in roles}
     return normalized_role is not None and normalized_role in normalized_targets
 
@@ -26,10 +26,10 @@ def create_session_token() -> str:
     return secrets.token_urlsafe(32)
 
 def build_auth_session_payload(user: models.User) -> schemas.AuthSession:
-    normalized_role = normalize_role(user.role)
+    normalized_role = normalize_role(cast(str, user.role))
     if not normalized_role:
         raise HTTPException(status_code=500, detail="Rôle utilisateur invalide en session")
-    return schemas.AuthSession(user_id=user.id, role=normalized_role)
+    return schemas.AuthSession(user_id=cast(int, user.id), role=normalized_role)
 
 def set_authenticated_session(response: Response, user: models.User, db: Session) -> schemas.AuthSession:
     payload = build_auth_session_payload(user)
@@ -90,7 +90,7 @@ def get_authenticated_user(request: Request, db: Session) -> Optional[models.Use
         clear_authenticated_session(request, db)
         return None
 
-    if normalize_role(user.role) != persistent_session.role:
+    if normalize_role(cast(str, user.role)) != persistent_session.role:
         clear_authenticated_session(request, db)
         return None
 
@@ -127,7 +127,7 @@ def validate_user_update_payload(user: models.User, payload: dict, db: Session) 
                 status_code=400,
                 detail="La création ou promotion d'un administrateur doit passer par les paramètres admin.",
             )
-        if user_has_role(user, "admin") and normalized_role != normalize_role(user.role):
+        if user_has_role(user, "admin") and normalized_role != normalize_role(cast(str, user.role)):
             raise HTTPException(status_code=400, detail="Le rôle des administrateurs ne peut pas être modifié ici")
         payload["role"] = normalized_role
 
@@ -151,19 +151,45 @@ def serialize_order_status(status: str) -> str:
 
 def format_user_location(user: Optional[models.User]) -> str:
     if not user: return "N/A"
-    parts = [p for p in [user.address, user.commune, user.province] if p]
+    parts = [cast(str, p) for p in [user.address, user.commune, user.province] if p]
     return ", ".join(parts) or "Localisation inconnue"
 
 def calculate_distance_km(u1: Optional[models.User], u2: Optional[models.User]) -> float:
-    if not u1 or not u2 or u1.latitude is None or u1.longitude is None or u2.latitude is None or u2.latitude is None:
+    if not u1 or not u2 or u1.latitude is None or u1.longitude is None or u2.latitude is None or u2.longitude is None:
         return 0.0
     
     # Haversine formula
-    lon1, lat1, lon2, lat2 = map(radians, [u1.longitude, u1.latitude, u2.longitude, u2.latitude])
+    lon1, lat1, lon2, lat2 = map(radians, [cast(float, u1.longitude), cast(float, u1.latitude), cast(float, u2.longitude), cast(float, u2.latitude)])
     dlon, dlat = lon2 - lon1, lat2 - lat1
     a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
     c = 2 * asin(sqrt(a))
     return 6371 * c # Rayon de la Terre en km
+
+def calculate_road_distance_km_sync(u1: Optional[models.User], u2: Optional[models.User]) -> Optional[float]:
+    """
+    Version synchrone pour intégration facile dans les fonctions existantes.
+    Utilise OpenRouteService si la clé est présente.
+    """
+    import httpx
+    if not config.ORS_API_KEY: return None
+    if not u1 or not u2 or u1.latitude is None or u2.latitude is None: return None
+    
+    # ORS attend [longitude, latitude]
+    start = [u1.longitude, u1.latitude]
+    end = [u2.longitude, u2.latitude]
+    
+    url = "https://api.openrouteservice.org/v2/directions/driving-car/json"
+    headers = {"Authorization": config.ORS_API_KEY, "Content-Type": "application/json"}
+    body = {"coordinates": [start, end], "units": "m"}
+    
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.post(url, json=body, headers=headers)
+            if response.status_code == 200:
+                return response.json()["routes"][0]["summary"]["distance"] / 1000.0
+    except:
+        pass
+    return None
 
 def format_distance_label(km: float) -> str:
     if km < 1: return f"{int(km * 1000)}m"

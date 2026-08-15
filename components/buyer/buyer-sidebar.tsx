@@ -40,6 +40,7 @@ export function BuyerSidebar({ mobile = false }: BuyerSidebarProps) {
       orders: "Commandes",
       profile: "Mon profil",
       testimonials: "Mes témoignages",
+      messages: "Messagerie",
       space: "Espace Acheteur",
       account: "Compte acheteur",
       navAria: "Navigation acheteur",
@@ -55,6 +56,7 @@ export function BuyerSidebar({ mobile = false }: BuyerSidebarProps) {
       orders: "Ivyatumwe",
       profile: "Umwirondoro",
       testimonials: "Ivyagiriza vyanje",
+      messages: "Ubutumwa",
       space: "Ikibanza c'Umuguzi",
       account: "Konti y'umuguzi",
       navAria: "Ugucungera kw'umuguzi",
@@ -71,6 +73,7 @@ export function BuyerSidebar({ mobile = false }: BuyerSidebarProps) {
     { href: "/acheteur/commande", label: copy.orders, icon: Package },
     { href: "/meteo", label: lang === "fr" ? "Météo & Conseils" : "Ibihe & Inama", icon: CloudSun },
     { href: "/acheteur/temoignages", label: copy.testimonials, icon: Star },
+    { href: "/acheteur/messages", label: copy.messages, icon: MessageCircle },
     { href: "/acheteur/profil", label: copy.profile, icon: User },
   ];
 

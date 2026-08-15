@@ -45,6 +45,8 @@ def submit_testimonial(payload: schemas.TestimonialCreate, request: Request, db:
         author_role_fr=user.role, # Sera traduit ou enrichi par admin
         author_role_ki=user.role, 
         quote_fr=payload.message,
+        quote_ki=payload.message,  # Même texte par défaut ; l'admin peut traduire ensuite
+
         rating=payload.rating,
         status="pending",
         location=f"{user.commune}, {user.province}" if user.province else None

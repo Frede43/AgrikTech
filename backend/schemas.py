@@ -12,6 +12,7 @@ class UserBase(BaseModel):
     commune: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    cooperative_id: Optional[int] = None
 
     # KYC
     nationality: Optional[str] = "Burundi"
@@ -146,6 +147,13 @@ class SupportTicketCreate(BaseModel):
     phone_number: Optional[str] = None
     subject: str
     message: str
+    user_id: Optional[int] = None
+    channel: Optional[str] = None
+
+
+class TestimonialSubmissionCreate(BaseModel):
+    message: str
+    rating: Decimal = Decimal("5.0")
 
 
 class SupportTicket(BaseModel):
@@ -278,7 +286,28 @@ class AdminFinanceAuditSummary(BaseModel):
 
 class AdminFinanceAuditResponse(BaseModel):
     items: List[AdminFinanceAuditItem] = []
-    summary: AdminFinanceAuditSummary
+    summary: dict = {
+        "total": 0,
+        "withdrawalEvents": 0,
+        "disputeEvents": 0,
+        "highPriorityEvents": 0,
+        "pendingWithdrawalEvents": 0
+    }
+
+class CooperativeBase(BaseModel):
+    name: str
+    province: Optional[str] = None
+    commune: Optional[str] = None
+    contact_phone: Optional[str] = None
+
+class CooperativeCreate(CooperativeBase):
+    pass
+
+class Cooperative(CooperativeBase):
+    id: int
+    is_verified: bool
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
 class ProductBase(BaseModel):
     name: str
@@ -290,6 +319,11 @@ class ProductBase(BaseModel):
     province: str
     vat_rate: Decimal = Decimal("0.18")
     is_taxable: bool = True
+    certification: Optional[str] = None
+    quality_grade: Optional[str] = None
+    lab_report_url: Optional[str] = None
+    farmer_id: Optional[int] = None
+    cooperative_id: Optional[int] = None
 
 class ProductCreate(ProductBase):
     pass
@@ -299,21 +333,23 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = None
     category: Optional[str] = None
     price_per_kg: Optional[float] = None
-    unit: Optional[str] = None
     quantity_kg: Optional[float] = None
     min_stock: Optional[float] = None
     province: Optional[str] = None
+    image_url: Optional[str] = None
+    is_active: Optional[bool] = None
     stock_reason_code: Optional[str] = None
     stock_reason_note: Optional[str] = None
 
 class Product(ProductBase):
     id: int
-    farmer_id: int
-    farmer_name: Optional[str] = None
-    sold_quantity: float
-    image_url: Optional[str] = None
+    seller_name: str
     rating: Decimal
+    is_active: bool
     harvested_at: datetime
+    sold_quantity: float
+    trace_token: Optional[str] = None
+    cooperative: Optional[Cooperative] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -333,14 +369,30 @@ class StockMovement(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class OrderBase(BaseModel):
+class OrderItemCreateSchema(BaseModel):
     product_id: int
     quantity: float
 
-class OrderCreate(OrderBase):
-    pass
+class OrderItem(BaseModel):
+    id: int
+    product_id: int
+    quantity: float
+    price_at_order: Decimal
+    
+    # Frontend compatibility fields
+    name: Optional[str] = None
+    unit: Optional[str] = None
+    image_url: Optional[str] = None
+    lineTotal: Optional[Decimal] = None
 
-class Order(OrderBase):
+    model_config = ConfigDict(from_attributes=True)
+
+class OrderCreate(BaseModel):
+    items: List[OrderItemCreateSchema] = []
+    product_id: Optional[int] = None
+    quantity: Optional[float] = None
+
+class Order(BaseModel):
     id: int
     buyer_id: int
     farmer_id: int
@@ -350,7 +402,10 @@ class Order(OrderBase):
     subtotal_price: Decimal = Decimal("0.0")
     invoice_number: Optional[str] = None
     status: str
+    items: List[OrderItem] = []
     created_at: datetime
+    pickup_qr_token: Optional[str] = None
+    delivery_otp: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -363,6 +418,7 @@ class CartValidationItem(BaseModel):
     unit: str
     image_url: Optional[str] = None
     category: str
+    farmer_id: Optional[int] = None
 
 
 class CartValidationRequest(BaseModel):
@@ -375,6 +431,11 @@ class DisputeCreate(BaseModel):
     detail: str
     refund_requested: Decimal
     priority: str = "medium"
+
+class DisputeResolve(BaseModel):
+    resolution: str
+    refund_amount: Decimal = Decimal("0.0")
+    status: str = "resolved" # resolved, rejected
 
 class Dispute(DisputeCreate):
     id: int
@@ -422,30 +483,82 @@ class AdminStats(BaseModel):
     resolved_disputes: int = 0
     high_priority_disputes: int = 0
 
-class AdminFinanceAuditItem(BaseModel):
-    id: str
-    action: str
-    title: str
-    detail: str
-    actorName: Optional[str] = None
-    createdAt: str
-    tone: str
-    entityType: str
-    entityId: Optional[int] = None
-    entityLabel: Optional[str] = None
-    reference: Optional[str] = None
-    priority: str = "medium"
-    status: Optional[str] = None
+class OrderItemBase(BaseModel):
+    product_id: int
+    quantity: float
+    price_at_order: Decimal
 
-class AdminFinanceAuditResponse(BaseModel):
-    items: List[AdminFinanceAuditItem]
-    summary: dict = {
-        "total": 0,
-        "withdrawalEvents": 0,
-        "disputeEvents": 0,
-        "highPriorityEvents": 0,
-        "pendingWithdrawalEvents": 0
-    }
+class OrderItemCreate(OrderItemBase):
+    pass
+
+class OrderItem(OrderItemBase):
+    id: int
+    order_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class MessageBase(BaseModel):
+    receiver_id: int
+    content: str
+    order_id: Optional[int] = None
+
+class MessageCreate(MessageBase):
+    pass
+
+class Message(MessageBase):
+    id: int
+    sender_id: int
+    read_at: Optional[datetime] = None
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class EquipmentBase(BaseModel):
+    name: str
+    type: str
+    price_per_day: Decimal
+    province: str
+    is_available: bool = True
+    image_url: Optional[str] = None
+
+class EquipmentCreate(EquipmentBase):
+    owner_id: int
+
+class Equipment(EquipmentBase):
+    id: int
+    owner_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class EquipmentReservationBase(BaseModel):
+    equipment_id: int
+    start_date: datetime
+    end_date: datetime
+    total_price: Decimal
+
+class EquipmentReservationCreate(EquipmentReservationBase):
+    user_id: int
+
+class EquipmentReservation(EquipmentReservationBase):
+    id: int
+    user_id: int
+    status: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class CreditRequestBase(BaseModel):
+    amount_requested: Decimal
+    reason: str
+    harvest_estimate_kg: Optional[float] = None
+    product_type: Optional[str] = None
+
+class CreditRequestCreate(CreditRequestBase):
+    user_id: int
+
+class CreditRequest(CreditRequestBase):
+    id: int
+    user_id: int
+    status: str
+    created_at: datetime
+    reviewed_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
 
 class Category(BaseModel):
     id: str

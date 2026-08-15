@@ -49,7 +49,24 @@ def delete_user(user_id: int, request: Request, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-        
+
+    # Refuser la suppression si l'utilisateur possède des données liées :
+    # les commandes, produits et transactions doivent rester traçables.
+    has_linked_data = (
+        db.query(models.Product.id).filter(models.Product.farmer_id == user_id).first() is not None
+        or db.query(models.Order.id).filter(
+            (models.Order.buyer_id == user_id)
+            | (models.Order.farmer_id == user_id)
+            | (models.Order.driver_id == user_id)
+        ).first() is not None
+        or db.query(models.TransactionLog.id).filter(models.TransactionLog.user_id == user_id).first() is not None
+    )
+    if has_linked_data:
+        raise HTTPException(
+            status_code=400,
+            detail="Impossible de supprimer cet utilisateur car il possède déjà des données liées.",
+        )
+
     db.delete(user)
     db.commit()
 
@@ -161,6 +178,7 @@ def get_user_transactions(user_id: int, request: Request, db: Session = Depends(
         results.append({
             "id": f"TXN-{log.id:05d}",
             "date": log.timestamp.isoformat(),
+            "order_id": log.order_id,
             "type": "sale" if log.amount > 0 else "payout",
             "status": "paid",
             "buyer": order.buyer.name if order and order.buyer else "Système",
@@ -194,6 +212,7 @@ def get_user_transactions(user_id: int, request: Request, db: Session = Depends(
             results.append({
                 "id": f"ORD-{o.id:05d}",
                 "date": o.created_at.isoformat(),
+                "order_id": o.id,
                 "type": "sale",
                 "status": "pending",
                 "buyer": o.buyer.name if o.buyer else "Acheteur",

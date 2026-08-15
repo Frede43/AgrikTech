@@ -51,16 +51,27 @@ export default function PaiementPage() {
     if (!address || !phone || !session || !isOnline) return;
     setLoading(true);
     try {
+      // Regrouper les articles par fermier
+      const groups = items.reduce((acc, item) => {
+        const fid = item.farmerId || 0;
+        if (!acc[fid]) acc[fid] = [];
+        acc[fid].push({
+          product_id: item.productId,
+          quantity: item.quantity
+        });
+        return acc;
+      }, {} as Record<number, any[]>);
+
+      // Créer une commande par fermier (chaque commande peut avoir plusieurs items)
       await Promise.all(
-        items.map((item) =>
-          apiFetch(`/orders/?buyer_id=${session.userId}`, {
+        Object.values(groups).map((farmerItems) =>
+          apiFetch("/orders/", {
             method: "POST",
             body: JSON.stringify({
-              product_id: item.productId,
-              quantity: item.quantity,
+              items: farmerItems,
             }),
-          }),
-        ),
+          })
+        )
       );
 
       setConfirmed(true);

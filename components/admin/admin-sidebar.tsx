@@ -16,6 +16,8 @@ import {
   Leaf as LeafIcon,
   ShieldCheck,
   Loader2,
+  Building2,
+  Coins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +51,8 @@ export function AdminSidebar({ mobile = false }: AdminSidebarProps) {
       withdrawals: "Retraits",
       testimonials: "Témoignages",
       audits: "Audits finance",
+      obr: "Conformité OBR",
+      credits: "Gestion des Crédits",
       account: "Compte admin",
       loading: "Chargement...",
       navAria: "Navigation admin",
@@ -64,6 +68,8 @@ export function AdminSidebar({ mobile = false }: AdminSidebarProps) {
       withdrawals: "Kubikuza",
       testimonials: "Ivyagiriza",
       audits: "Igenzura ry'imari",
+      obr: "Ibijanye n'ikori (OBR)",
+      credits: "Ibijanye n'ingane",
       account: "Konti y'admin",
       loading: "Biriko biratangura...",
       navAria: "Ugucungera admin",
@@ -96,6 +102,9 @@ export function AdminSidebar({ mobile = false }: AdminSidebarProps) {
     { href: "/admin/retraits", label: copy.withdrawals, icon: Wallet, badge: stats?.pending_withdrawals ?? 0 },
     { href: "/admin/temoignages", label: copy.testimonials, icon: Star },
     { href: "/admin/audits-finance", label: copy.audits, icon: FileText },
+    { href: "/admin/obr", label: copy.obr, icon: Building2 },
+    { href: "/admin/credits", label: copy.credits, icon: Coins },
+    { href: "/admin/cooperatives", label: lang === "fr" ? "Coopératives" : "Amashirahamwe", icon: ShieldCheck },
     { href: "/admin/utilisateurs", label: copy.users, icon: Users },
   ];
 

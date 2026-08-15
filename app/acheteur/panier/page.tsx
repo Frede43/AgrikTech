@@ -26,6 +26,7 @@ interface ValidationItem {
   available_stock: number;
   status: "ok" | "unavailable" | "stock_changed" | "price_changed";
   issues: string[];
+  farmer_id: number;
   line_total: number;
 }
 
@@ -198,6 +199,7 @@ export default function PanierPage() {
         ...item,
         quantity: line.validated_quantity,
         price: line.current_price,
+        farmerId: line.farmer_id || 0,
       }];
     });
 

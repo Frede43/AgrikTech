@@ -41,12 +41,13 @@ class SupportingEndpointsTests(unittest.TestCase):
         cls._upload_dir.mkdir(exist_ok=True)
         os.environ["DATABASE_URL"] = f"sqlite:///{cls._db_path}"
         os.chdir(BACKEND_DIR)
-        for name in ("main", "models", "schemas", "database"):
-            sys.modules.pop(name, None)
-        cls.database = importlib.import_module("database")
-        cls.models = importlib.import_module("models")
-        cls.schemas = importlib.import_module("schemas")
-        cls.main = importlib.import_module("main")
+        for name in list(sys.modules):
+            if name == "backend" or name.startswith("backend.") or name in ("main", "models", "schemas", "database", "utils", "config"):
+                sys.modules.pop(name, None)
+        cls.database = importlib.import_module("backend.database")
+        cls.models = importlib.import_module("backend.models")
+        cls.schemas = importlib.import_module("backend.schemas")
+        cls.main = importlib.import_module("backend.main")
         cls.main.UPLOAD_DIR = str(cls._upload_dir)
 
     @classmethod

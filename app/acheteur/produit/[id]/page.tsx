@@ -12,6 +12,7 @@ import { useCart } from "@/components/cart-context";
 import { useLanguage } from "@/lib/LanguageContext";
 import { apiFetch, API_BASE_URL } from "@/lib/api-config";
 import { logIfNotNetworkError } from "@/lib/offline";
+import { cn } from "@/lib/utils";
 
 interface Product {
   id: number;
@@ -28,6 +29,12 @@ interface Product {
   image_url: string | null;
   farmer_id: number;
   farmer_name?: string;
+  seller_name?: string;
+  cooperative?: {
+    id: number;
+    name: string;
+    is_verified: boolean;
+  } | null;
 }
 
 export default function ProductDetailPage() {
@@ -64,7 +71,8 @@ export default function ProductDetailPage() {
       quantity: qty,
       unit: product.unit,
       image_url: product.image_url,
-      category: product.category
+      category: product.category,
+      farmerId: product.farmer_id
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
@@ -102,7 +110,7 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <BuyerLayout title={product.name} subtitle={`${product.farmer_name || text.prodDetailFarmer} — ${product.province}`}>
+    <BuyerLayout title={product.name} subtitle={`${product.seller_name || text.prodDetailFarmer} — ${product.province}`}>
       <div className="max-w-md mx-auto px-4 py-6 space-y-6 pb-28">
         {/* Product image */}
         <div className="relative h-64 bg-secondary flex items-center justify-center text-7xl rounded-3xl overflow-hidden mx-0 border border-border shadow-sm group">
@@ -147,20 +155,29 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Farmer */}
+          {/* Farmer / Cooperative */}
           <div className="flex items-center gap-4 p-4 rounded-2xl bg-card border border-border shadow-sm group hover:border-primary/20 transition-colors">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-lg shrink-0 group-hover:scale-105 transition-transform">
-              {(product.farmer_name || "F").split(" ").map((n: string) => n[0]).join("")}
+              {(product.cooperative?.name || product.farmer_name || "F").split(" ").map((n: string) => n[0]).join("")}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-foreground truncate">{product.farmer_name || text.prodDetailFarmer}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-bold text-foreground truncate">{product.cooperative?.name || product.farmer_name || text.prodDetailFarmer}</p>
+                {product.cooperative?.is_verified && (
+                  <Shield className="w-4 h-4 text-green-500 fill-green-500/20" />
+                )}
+              </div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
                 <MapPin className="w-3 h-3 text-primary/60" />
                 <span>{product.province}</span>
+                {product.cooperative && <span className="text-[10px] opacity-40 lowercase">({text.coopFormTitle})</span>}
               </div>
             </div>
-            <Badge className="shrink-0 bg-primary/10 text-primary border-0 font-bold uppercase tracking-widest text-[9px] px-2 py-0.5">
-              {text.prodDetailVerified}
+            <Badge className={cn(
+              "shrink-0 border-0 font-bold uppercase tracking-widest text-[9px] px-2 py-0.5",
+              product.cooperative?.is_verified ? "bg-green-500 text-white" : "bg-primary/10 text-primary"
+            )}>
+              {product.cooperative?.is_verified ? (lang === 'fr' ? 'Vérifié' : 'Yemejwe') : text.prodDetailVerified}
             </Badge>
           </div>
 

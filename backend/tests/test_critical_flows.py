@@ -18,12 +18,13 @@ class CriticalFlowsTests(unittest.TestCase):
         cls._tmpdir = tempfile.TemporaryDirectory()
         os.environ["DATABASE_URL"] = f"sqlite:///{Path(cls._tmpdir.name) / 'test.db'}"
         os.chdir(BACKEND_DIR)
-        for name in ("main", "models", "schemas", "database"):
-            sys.modules.pop(name, None)
-        cls.database = importlib.import_module("database")
-        cls.models = importlib.import_module("models")
-        cls.schemas = importlib.import_module("schemas")
-        cls.main = importlib.import_module("main")
+        for name in list(sys.modules):
+            if name == "backend" or name.startswith("backend.") or name in ("main", "models", "schemas", "database", "utils", "config"):
+                sys.modules.pop(name, None)
+        cls.database = importlib.import_module("backend.database")
+        cls.models = importlib.import_module("backend.models")
+        cls.schemas = importlib.import_module("backend.schemas")
+        cls.main = importlib.import_module("backend.main")
 
     @classmethod
     def tearDownClass(cls):

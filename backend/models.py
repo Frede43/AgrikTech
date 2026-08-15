@@ -43,6 +43,9 @@ class User(Base):
     orders_as_farmer = relationship("Order", back_populates="farmer", foreign_keys="Order.farmer_id")
     orders_as_driver = relationship("Order", back_populates="driver", foreign_keys="Order.driver_id")
 
+    cooperative_id = Column(Integer, ForeignKey("cooperatives.id"), nullable=True)
+    cooperative = relationship("Cooperative", back_populates="members")
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -61,13 +64,24 @@ class Product(Base):
     is_active = Column(Boolean, default=True)
     rating = Column(Float, default=4.5)
     harvested_at = Column(DateTime, default=utcnow_naive)
+    trace_token = Column(String, unique=True, index=True, nullable=True) # UUID pour le QR Code de traçabilité
     
-    farmer_id = Column(Integer, ForeignKey("users.id"))
+    farmer_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    cooperative_id = Column(Integer, ForeignKey("cooperatives.id"), nullable=True)
+
     farmer = relationship("User", back_populates="products", foreign_keys=[farmer_id])
+    cooperative = relationship("Cooperative")
+
+    # Certification & Qualité
+    certification = Column(String, nullable=True) # ex: "Bio", "ISABU", "Label Café Burundi"
+    quality_grade = Column(String, nullable=True) # A, B, C
+    lab_report_url = Column(String, nullable=True)
 
     @hybrid_property
-    def farmer_name(self):
-        return self.farmer.name if self.farmer else "Inconnu"
+    def seller_name(self):
+        if self.cooperative:
+            return self.cooperative.name
+        return self.farmer.name if self.farmer else "Vendeur AgriConnect"
 
 
 class StockMovement(Base):
@@ -93,7 +107,8 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     buyer_id = Column(Integer, ForeignKey("users.id"))
-    farmer_id = Column(Integer, ForeignKey("users.id"))
+    farmer_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    cooperative_id = Column(Integer, ForeignKey("cooperatives.id"), nullable=True)
     driver_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     product_id = Column(Integer, ForeignKey("products.id"))
@@ -113,7 +128,9 @@ class Order(Base):
     buyer = relationship("User", back_populates="orders_as_buyer", foreign_keys=[buyer_id])
     farmer = relationship("User", back_populates="orders_as_farmer", foreign_keys=[farmer_id])
     driver = relationship("User", back_populates="orders_as_driver", foreign_keys=[driver_id])
+    cooperative = relationship("Cooperative")
     product = relationship("Product")
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
 
 
 class Dispute(Base):
@@ -131,6 +148,7 @@ class Dispute(Base):
     status = Column(String, default="open")
     priority = Column(String, default="medium")
     resolution = Column(String, nullable=True)
+    pre_dispute_status = Column(String, nullable=True)
     created_at = Column(DateTime, default=utcnow_naive)
     updated_at = Column(DateTime, default=utcnow_naive, onupdate=utcnow_naive)
 
@@ -184,15 +202,6 @@ class AdminAuditLog(Base):
     admin_user = relationship("User", foreign_keys=[admin_user_id])
 
 
-class PlatformSettings(Base):
-    __tablename__ = "platform_settings"
-
-    id = Column(Integer, primary_key=True, index=True)
-    commission_rate = Column(Numeric(5, 4), default=0.05)
-    maintenance_mode = Column(Boolean, default=False)
-    support_phone = Column(String, default="+25776000000")
-    support_whatsapp = Column(String, default="+25776000000")
-    updated_at = Column(DateTime, default=utcnow_naive, onupdate=utcnow_naive)
 
 
 class Testimonial(Base):
@@ -298,3 +307,101 @@ class SystemSettings(Base):
     support_phone = Column(String, default="+25776000000")
     support_whatsapp = Column(String, default="+25776000000")
     updated_at = Column(DateTime, default=utcnow_naive, onupdate=utcnow_naive)
+
+class Cooperative(Base):
+    __tablename__ = "cooperatives"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    province = Column(String)
+    commune = Column(String)
+    contact_phone = Column(String)
+    is_verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=utcnow_naive)
+    
+    members = relationship("User", back_populates="cooperative")
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"))
+    product_id = Column(Integer, ForeignKey("products.id"))
+    quantity = Column(Float)
+    price_at_order = Column(Numeric(12, 2))
+    
+    order = relationship("Order", back_populates="items")
+    product = relationship("Product")
+
+    @property
+    def name(self):
+        return self.product.name if self.product else "Produit inconnu"
+
+    @property
+    def unit(self):
+        return self.product.unit if self.product else "kg"
+
+    @property
+    def image_url(self):
+        return self.product.image_url if self.product else None
+
+    @property
+    def lineTotal(self):
+        from decimal import Decimal
+        p = self.price_at_order or 0
+        q = self.quantity or 0
+        return Decimal(str(p)) * Decimal(str(q))
+
+class Message(Base):
+    __tablename__ = "messages"
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"))
+    receiver_id = Column(Integer, ForeignKey("users.id"))
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    content = Column(String, nullable=False)
+    read_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utcnow_naive)
+
+class Equipment(Base):
+    __tablename__ = "equipments"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    type = Column(String) # tracteur, pompe, etc.
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    price_per_day = Column(Numeric(12, 2))
+    province = Column(String)
+    is_available = Column(Boolean, default=True)
+    image_url = Column(String, nullable=True)
+    
+    owner = relationship("User")
+
+class EquipmentReservation(Base):
+    __tablename__ = "equipment_reservations"
+    id = Column(Integer, primary_key=True, index=True)
+    equipment_id = Column(Integer, ForeignKey("equipments.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    status = Column(String, default="pending") # pending, confirmed, completed, cancelled
+    total_price = Column(Numeric(12, 2))
+    created_at = Column(DateTime, default=utcnow_naive)
+
+class CreditRequest(Base):
+    __tablename__ = "credit_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    amount_requested = Column(Numeric(12, 2))
+    reason = Column(String)
+    status = Column(String, default="pending") # pending, approved, rejected, repaid
+    harvest_estimate_kg = Column(Float, nullable=True)
+    product_type = Column(String, nullable=True)
+    created_at = Column(DateTime, default=utcnow_naive)
+    reviewed_at = Column(DateTime, nullable=True)
+
+class OtpCode(Base):
+    """Code OTP persisté : survit aux redémarrages et fonctionne multi-workers."""
+    __tablename__ = "otp_codes"
+    id = Column(Integer, primary_key=True, index=True)
+    phone_number = Column(String, unique=True, index=True, nullable=False)
+    code = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    last_sent_at = Column(DateTime, default=utcnow_naive, nullable=False)

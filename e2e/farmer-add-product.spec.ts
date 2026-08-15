@@ -7,7 +7,7 @@ test("farmer can add a product from the UI", async ({ page, request }) => {
   const seed = createE2eSeed();
   const farmerPhone = createPhoneNumber("61", seed);
 
-  const farmerResponse = await request.post(`${API_URL}/users/`, {
+  const farmerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: farmerPhone, role: "farmer", name: "Fermier Produit E2E", province: "Ngozi" },
   });
   expect(farmerResponse.ok()).toBeTruthy();
@@ -51,7 +51,7 @@ test("farmer can add a product from the UI", async ({ page, request }) => {
   await expect(page.getByRole("heading", { name: "Produit ajouté !" })).toBeVisible();
   expect(createdProduct.name).toBe(productName);
   expect(createdProduct.category).toBe("cereales");
-  expect(createdProduct.price_per_kg).toBe(3400);
+  expect(Number(createdProduct.price_per_kg)).toBe(3400);
   expect(createdProduct.quantity_kg).toBe(42);
   expect(createdProduct.unit).toBe("kg");
   expect(createdProduct.province).toBe("Ngozi");
@@ -71,7 +71,7 @@ test("farmer can add a product from the UI", async ({ page, request }) => {
   expect(listedProduct).toBeTruthy();
   expect(listedProduct?.name).toBe(productName);
   expect(listedProduct?.category).toBe("cereales");
-  expect(listedProduct?.price_per_kg).toBe(3400);
+  expect(Number(listedProduct?.price_per_kg)).toBe(3400);
   expect(listedProduct?.quantity_kg).toBe(42);
   expect(listedProduct?.province).toBe("Ngozi");
 

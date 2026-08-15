@@ -5,7 +5,7 @@ test("buyer login persists a session snapshot and logout clears it", async ({ pa
   const phoneDigits = createPhoneDigits("79");
   const fullPhone = `+257${phoneDigits}`;
 
-  const userResponse = await request.post(`${API_URL}/users/`, {
+  const userResponse = await request.post(`${API_URL}/testing/users/`, {
     data: {
       phone_number: fullPhone,
       role: "buyer",

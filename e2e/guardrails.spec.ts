@@ -4,25 +4,25 @@ import { API_URL, createE2eSeed, createPhoneDigits, createPhoneNumber, loginViaO
 async function seedCollectedOrder(request: APIRequestContext) {
   const seed = createE2eSeed();
 
-  const buyerResponse = await request.post(`${API_URL}/users/`, {
+  const buyerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("79", seed), role: "buyer", name: `Acheteur Guard ${seed}`, province: "Bujumbura" },
   });
   expect(buyerResponse.ok()).toBeTruthy();
   const buyer = await buyerResponse.json() as { id: number };
 
-  const farmerResponse = await request.post(`${API_URL}/users/`, {
+  const farmerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("61", seed), role: "farmer", name: `Fermier Guard ${seed}`, province: "Gitega" },
   });
   expect(farmerResponse.ok()).toBeTruthy();
   const farmer = await farmerResponse.json() as { id: number };
 
-  const driverResponse = await request.post(`${API_URL}/users/`, {
+  const driverResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: createPhoneNumber("68", seed), role: "driver", name: `Livreur Guard ${seed}`, province: "Ngozi" },
   });
   expect(driverResponse.ok()).toBeTruthy();
   const driver = await driverResponse.json() as { id: number };
 
-  const productResponse = await request.post(`${API_URL}/products/?farmer_id=${farmer.id}`, {
+  const productResponse = await request.post(`${API_URL}/testing/products/?farmer_id=${farmer.id}`, {
     data: {
       name: `Haricots Guard ${seed}`,
       category: "cereales",
@@ -35,13 +35,13 @@ async function seedCollectedOrder(request: APIRequestContext) {
   expect(productResponse.ok()).toBeTruthy();
   const product = await productResponse.json() as { id: number; name: string };
 
-  const orderResponse = await request.post(`${API_URL}/orders/?buyer_id=${buyer.id}`, {
+  const orderResponse = await request.post(`${API_URL}/testing/orders/?buyer_id=${buyer.id}`, {
     data: { product_id: product.id, quantity: 2 },
   });
   expect(orderResponse.ok()).toBeTruthy();
   const order = await orderResponse.json() as { id: number };
 
-  const detailResponse = await request.get(`${API_URL}/orders/${order.id}`);
+  const detailResponse = await request.get(`${API_URL}/testing/orders/${order.id}`);
   expect(detailResponse.ok()).toBeTruthy();
   const detail = await detailResponse.json() as { pickup_qr: string };
 
@@ -57,7 +57,7 @@ test("login keeps the user on OTP step when the code is invalid", async ({ page,
   const phoneDigits = createPhoneDigits("79");
   const fullPhone = `+257${phoneDigits}`;
 
-  const userResponse = await request.post(`${API_URL}/users/`, {
+  const userResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: fullPhone, role: "buyer", name: "Acheteur OTP Invalide", province: "Bujumbura" },
   });
   expect(userResponse.ok()).toBeTruthy();
@@ -108,17 +108,17 @@ test("driver cannot complete delivery with a wrong OTP", async ({ page, request 
 
   await expect(page).toHaveURL(new RegExp(`/logistique/livraison/${order.id}$`));
 
-  const orderDetailResponse = await request.get(`${API_URL}/orders/${order.id}`);
+  const orderDetailResponse = await request.get(`${API_URL}/testing/orders/${order.id}`);
   expect(orderDetailResponse.ok()).toBeTruthy();
   const orderDetail = (await orderDetailResponse.json()) as { status: string };
-  expect(orderDetail.status).toBe("collected");
+  expect(orderDetail.status).toBe("picked_up");
 
-  const farmerResponse = await request.get(`${API_URL}/users/${farmer.id}`);
+  const farmerResponse = await request.get(`${API_URL}/testing/users/${farmer.id}`);
   expect(farmerResponse.ok()).toBeTruthy();
   const farmerPayload = (await farmerResponse.json()) as { balance: number };
-  expect(farmerPayload.balance).toBe(0);
+  expect(Number(farmerPayload.balance)).toBe(0);
 
-  const transactionsResponse = await request.get(`${API_URL}/users/${farmer.id}/transactions`);
+  const transactionsResponse = await request.get(`${API_URL}/testing/users/${farmer.id}/transactions`);
   expect(transactionsResponse.ok()).toBeTruthy();
   const transactions = (await transactionsResponse.json()) as Array<{
     id: string;
@@ -141,17 +141,17 @@ test("protected spaces redirect to the role-specific login when the session role
   const adminPhoneDigits = createPhoneDigits("71", seed);
   const driverPhoneDigits = createPhoneDigits("68", seed);
 
-  const buyerResponse = await request.post(`${API_URL}/users/`, {
+  const buyerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: `+257${buyerPhoneDigits}`, role: "buyer", name: `Acheteur Redirect ${seed}`, province: "Bujumbura" },
   });
   expect(buyerResponse.ok()).toBeTruthy();
 
-  const adminResponse = await request.post(`${API_URL}/users/`, {
+  const adminResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: `+257${adminPhoneDigits}`, role: "admin", name: `Admin Redirect ${seed}`, province: "Gitega" },
   });
   expect(adminResponse.ok()).toBeTruthy();
 
-  const driverResponse = await request.post(`${API_URL}/users/`, {
+  const driverResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: `+257${driverPhoneDigits}`, role: "driver", name: `Livreur Redirect ${seed}`, province: "Ngozi" },
   });
   expect(driverResponse.ok()).toBeTruthy();

@@ -93,26 +93,71 @@ function LoginContent() {
                         <p className="text-sm text-muted-foreground leading-relaxed">{copy.chooseRoleSubtitle}</p>
                     </div>
 
-                    <div className="space-y-3">
-                        {roleOptions.map((option) => (
-                            <Link
-                                key={option.role}
-                                href={getLoginPath(option.role)}
-                                className="block rounded-2xl border border-border bg-card p-4 hover:border-primary hover:bg-primary/5 transition-colors"
-                            >
-                                <p className="font-semibold text-foreground">{text.loginTitle} {option.label}</p>
-                                <p className="text-sm text-muted-foreground mt-1">{option.description}</p>
-                            </Link>
-                        ))}
+                    <div className="space-y-6">
+                        {/* Groupe Individus */}
+                        <div className="space-y-3">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Particuliers</p>
+                            <div className="grid gap-3">
+                                {roleOptions.filter(o => o.role !== "logistique").map((option) => (
+                                    <Link
+                                        key={option.role}
+                                        href={getLoginPath(option.role)}
+                                        className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 hover:border-primary hover:bg-primary/5 transition-all group"
+                                    >
+                                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                                            {option.role === "acheteur" ? <ArrowRight className="w-6 h-6" /> : <Leaf className="w-6 h-6" />}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-bold text-foreground">{option.label}</p>
+                                            <p className="text-xs text-muted-foreground">{option.description}</p>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Groupe Organisations */}
+                        <div className="space-y-3">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 ml-1">Professionnels & Groupements</p>
+                            <div className="grid gap-3">
+                                {/* Option Coopérative (Spéciale) */}
+                                <Link
+                                    href={getLoginPath("fermier")} // Le manager de coop utilise le login fermier mais verra son interface coop
+                                    className="flex items-center gap-4 rounded-2xl border-2 border-amber-100 bg-amber-50/30 p-5 hover:border-amber-500 hover:bg-amber-50 transition-all group shadow-sm"
+                                >
+                                    <div className="w-14 h-14 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+                                        <Shield className="w-7 h-7" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-black text-amber-900 text-lg">Responsable Coopérative</p>
+                                        <p className="text-xs text-amber-700 font-medium">Gérez vos membres, vos stocks collectifs et votre Hub logistique.</p>
+                                    </div>
+                                </Link>
+
+                                {/* Option Logistique */}
+                                <Link
+                                    href={getLoginPath("logistique")}
+                                    className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 hover:border-primary hover:bg-primary/5 transition-all group"
+                                >
+                                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-600 group-hover:text-white transition-colors">
+                                        <Globe className="w-6 h-6" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-foreground">Transport & Logistique</p>
+                                        <p className="text-xs text-muted-foreground">Accédez aux missions de ramassage et de livraison.</p>
+                                    </div>
+                                </Link>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border bg-secondary/40 p-4 space-y-3">
-                        <div>
-                            <p className="font-semibold text-foreground">{text.adminTitle}</p>
-                            <p className="text-sm text-muted-foreground mt-1">{text.adminSub}</p>
+                    <div className="rounded-2xl border border-dashed border-border bg-secondary/20 p-4 flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <p className="text-xs font-black text-foreground uppercase tracking-widest">Administration</p>
+                            <p className="text-[10px] text-muted-foreground">Accès réservé au personnel AgriConnect</p>
                         </div>
-                        <Button asChild variant="outline" className="w-full">
-                            <Link href={getLoginPath("admin")}>{text.adminCta}</Link>
+                        <Button asChild variant="ghost" size="sm" className="font-bold text-primary rounded-xl">
+                            <Link href={getLoginPath("admin")}>S'identifier</Link>
                         </Button>
                     </div>
 

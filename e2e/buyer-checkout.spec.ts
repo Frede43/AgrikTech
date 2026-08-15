@@ -6,19 +6,19 @@ test("buyer can add a product to cart and place an order", async ({ page, reques
   const buyerPhone = createPhoneNumber("79", seed);
   const farmerPhone = createPhoneNumber("61", seed);
 
-  const buyerResponse = await request.post(`${API_URL}/users/`, {
+  const buyerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: buyerPhone, role: "buyer", name: "Acheteur Checkout E2E", province: "Bujumbura" },
   });
   expect(buyerResponse.ok()).toBeTruthy();
   const buyer = (await buyerResponse.json()) as { id: number };
 
-  const farmerResponse = await request.post(`${API_URL}/users/`, {
+  const farmerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: farmerPhone, role: "farmer", name: "Fermier Checkout E2E", province: "Gitega" },
   });
   expect(farmerResponse.ok()).toBeTruthy();
   const farmer = (await farmerResponse.json()) as { id: number };
 
-  const productResponse = await request.post(`${API_URL}/products/?farmer_id=${farmer.id}`, {
+  const productResponse = await request.post(`${API_URL}/testing/products/?farmer_id=${farmer.id}`, {
     data: {
       name: `Tomates Checkout ${seed.slice(-4)}`,
       category: "legumes",
@@ -63,7 +63,7 @@ test("buyer can add a product to cart and place an order", async ({ page, reques
   await expect(page.locator("main").getByRole("heading", { name: "Paiement & Livraison", level: 1 })).toBeVisible();
 
   const orderResponsePromise = page.waitForResponse(
-    (response) => response.url().includes(`/orders/?buyer_id=${buyer.id}`) && response.request().method() === "POST",
+    (response) => response.url().endsWith("/orders/") && response.request().method() === "POST",
   );
 
   await page.getByPlaceholder("Ex: Avenue du Lac, Bujumbura, Rohero I").fill("Avenue du Lac, Bujumbura, Rohero I");
@@ -75,13 +75,13 @@ test("buyer can add a product to cart and place an order", async ({ page, reques
   await expect(page.getByRole("heading", { name: "Paiement confirmé !" })).toBeVisible();
   await expect(page.getByText(/Votre commande a été transmise aux fermiers/i)).toBeVisible();
 
-  const orderDetailResponse = await request.get(`${API_URL}/orders/${createdOrder.id}`);
+  const orderDetailResponse = await request.get(`${API_URL}/testing/orders/${createdOrder.id}`);
   expect(orderDetailResponse.ok()).toBeTruthy();
   const orderDetail = (await orderDetailResponse.json()) as {
     status: string;
     items: Array<{ name: string; qty: number }>;
   };
-  expect(orderDetail.status).toBe("pending");
+  expect(orderDetail.status).toBe("paid_escrow");
   expect(orderDetail.items[0]?.qty).toBe(1);
   expect(orderDetail.items[0]?.name).toBe(product.name);
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from typing import List, Optional, cast
+from typing import List, Optional, cast, Any
 from datetime import datetime
 
 import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
@@ -58,6 +58,39 @@ def verify_kyc(
     
     db.commit()
     return {"message": f"Statut KYC mis à jour pour {user.name}: {status}"}
+
+@router.post("/cooperatives/{coop_id}/verify")
+def verify_cooperative(
+    coop_id: int, 
+    status: str, # 'verified' or 'unverified'
+    notes: Optional[str] = None,
+    request: Request = None, # type: ignore
+    db: Session = Depends(get_db)
+):
+    """
+    Approuve ou révoque la vérification d'une coopérative.
+    Une coopérative vérifiée affiche un badge de confiance pour les acheteurs.
+    """
+    admin = check_admin_auth(request, db)
+    
+    coop = db.query(models.Cooperative).filter(models.Cooperative.id == coop_id).first()
+    if not coop:
+        raise HTTPException(status_code=404, detail="Coopérative non trouvée")
+    
+    is_verified = (status == "verified")
+    coop.is_verified = cast(Any, is_verified)
+    
+    # Audit log
+    db.add(models.AdminAuditLog(
+        admin_user_id=admin.id,
+        action=f"COOP_{status.upper()}",
+        entity_type="cooperative",
+        entity_id=coop.id,
+        detail=f"Coopérative {coop.name} marquée comme {status}. Notes: {notes}"
+    ))
+    
+    db.commit()
+    return {"message": f"Statut de vérification mis à jour pour {coop.name}", "is_verified": is_verified}
 
 @router.get("/kyc/pending", response_model=List[schemas.User])
 def get_pending_kyc(request: Request, db: Session = Depends(get_db)):

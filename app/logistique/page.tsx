@@ -19,7 +19,8 @@ interface Order {
   status: string;
   farmer: string;
   address: string;
-  items: string;
+  items: Array<{ name: string; qty: number; unit: string }>;
+  items_label: string;
   distance: string;
   pickupTime: string;
   priority: string;
@@ -180,7 +181,7 @@ export default function LogistiquePage() {
                         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                           <Package className="w-4 h-4 text-primary" />
                         </div>
-                        <span className="text-xs font-bold text-foreground leading-snug">{col.items}</span>
+                        <span className="text-xs font-bold text-foreground leading-snug">{col.items_label}</span>
                       </div>
                       <div className="flex items-center justify-between pt-1">
                         <div className="flex items-center gap-4 text-muted-foreground font-bold text-[10px] uppercase tracking-tight">
@@ -225,7 +226,7 @@ export default function LogistiquePage() {
                     </div>
                     <div className="bg-amber-50 rounded-xl px-4 py-3 flex items-center gap-3 border border-amber-100">
                       <Package className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span className="text-xs font-bold text-foreground leading-snug">{col.items}</span>
+                      <span className="text-xs font-bold text-foreground leading-snug">{col.items_label}</span>
                     </div>
                     <Button
                       className="w-full h-10 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs gap-2 shadow-sm"

@@ -13,6 +13,7 @@ export interface CartItem {
     unit: string;
     image_url: string | null;
     category: string;
+    farmerId: number;
 }
 
 interface CartContextType {
@@ -72,6 +73,7 @@ function normalizeCartItems(input: unknown): CartItem[] {
             unit: rawItem.unit,
             image_url: rawItem.image_url ?? null,
             category: rawItem.category,
+            farmerId: Number(rawItem.farmerId) || 0,
         }];
     });
 }

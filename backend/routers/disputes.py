@@ -82,3 +82,50 @@ def create_dispute(dispute: schemas.DisputeCreate, request: Request, db: Session
     db.commit()
     db.refresh(db_dispute)
     return db_dispute
+
+@router.put("/{dispute_id}/resolve")
+def resolve_dispute(
+    dispute_id: int, 
+    payload: schemas.DisputeResolve, 
+    request: Request, 
+    db: Session = Depends(get_db)
+):
+    """
+    Résout un litige administrativement. 
+    Peut déclencher un remboursement partiel ou total.
+    """
+    admin = utils.get_authenticated_user(request, db)
+    if not admin or not utils.user_has_role(admin, "admin"):
+        raise HTTPException(status_code=403, detail="Réservé aux admins.")
+        
+    dispute = db.query(models.Dispute).filter(models.Dispute.id == dispute_id).first()
+    if not dispute:
+        raise HTTPException(status_code=404, detail="Litige non trouvé.")
+        
+    dispute.status = payload.status
+    dispute.resolution = payload.resolution
+    
+    # Gérer le remboursement si nécessaire
+    if payload.refund_amount > 0:
+        order = dispute.order
+        if order and order.status == "DISPUTED":
+            buyer = order.buyer
+            if buyer:
+                buyer.balance += payload.refund_amount
+                db.add(models.TransactionLog(
+                    user_id=buyer.id,
+                    order_id=order.id,
+                    amount=payload.refund_amount,
+                    action="DISPUTE_REFUND"
+                ))
+            
+    db.add(models.AdminAuditLog(
+        admin_user_id=admin.id,
+        action=f"DISPUTE_{payload.status.upper()}",
+        entity_type="dispute",
+        entity_id=dispute.id,
+        detail=f"Litige résolu. Remboursement: {payload.refund_amount} BIF. Note: {payload.resolution}"
+    ))
+    
+    db.commit()
+    return {"message": "Litige traité avec succès."}

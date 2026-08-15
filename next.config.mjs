@@ -7,19 +7,20 @@ const withPWA = withPWAInit({
   skipWaiting: true,
 });
 
+// Les images produits sont servies par le backend ; on autorise son origine
+// (locale par défaut, celle de NEXT_PUBLIC_API_URL en production).
+const apiUrl = new URL(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '8000',
-        pathname: '/static/**',
+        protocol: apiUrl.protocol.replace(":", ""),
+        hostname: apiUrl.hostname,
+        port: apiUrl.port,
+        pathname: "/static/**",
       },
     ],
   },
@@ -27,4 +28,3 @@ const nextConfig = {
 };
 
 export default withPWA(nextConfig);
-

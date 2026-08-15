@@ -29,54 +29,91 @@ class WeatherService:
         "Karuzi": {"lat": -3.10, "lon": 30.15},
     }
 
+    # Codes météo WMO (Open-Meteo) → (description FR, icône style OpenWeatherMap,
+    # attendue par le frontend pour construire l'URL de l'image).
+    WMO_CODES = {
+        0: ("Ensoleillé", "01d"),
+        1: ("Plutôt ensoleillé", "02d"),
+        2: ("Partiellement nuageux", "03d"),
+        3: ("Couvert et nuageux", "04d"),
+        45: ("Brouillard", "50d"),
+        48: ("Brouillard givrant", "50d"),
+        51: ("Bruine légère", "09d"),
+        53: ("Bruine", "09d"),
+        55: ("Bruine dense", "09d"),
+        56: ("Bruine verglaçante", "09d"),
+        57: ("Bruine verglaçante dense", "09d"),
+        61: ("Pluie légère", "10d"),
+        63: ("Pluie", "10d"),
+        65: ("Pluie forte", "10d"),
+        66: ("Pluie verglaçante", "10d"),
+        67: ("Pluie verglaçante forte", "10d"),
+        71: ("Neige légère", "13d"),
+        73: ("Neige", "13d"),
+        75: ("Neige forte", "13d"),
+        77: ("Grésil", "13d"),
+        80: ("Averses légères", "09d"),
+        81: ("Averses", "09d"),
+        82: ("Averses violentes", "09d"),
+        95: ("Orage", "11d"),
+        96: ("Orage avec grêle", "11d"),
+        99: ("Orage avec grêle forte", "11d"),
+    }
+
+    JOURS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+
     @staticmethod
     def get_weather_forecast(province: str) -> Dict[str, Any]:
         """
-        Récupère les prévisions météo via OpenWeatherMap.
+        Récupère les prévisions météo via Open-Meteo (gratuit, sans clé API).
         """
         coords = WeatherService.PROVINCE_COORDS.get(province, WeatherService.PROVINCE_COORDS["Bujumbura"])
-        api_key = "598d140fc1b16788d12b9f975c78a2b2"
-        
+
         try:
-            # On utilise l'API forecast 5 jours / 3 heures
-            url = f"https://api.openweathermap.org/data/2.5/forecast?lat={coords['lat']}&lon={coords['lon']}&appid={api_key}&units=metric&lang=fr"
+            url = (
+                "https://api.open-meteo.com/v1/forecast"
+                f"?latitude={coords['lat']}&longitude={coords['lon']}"
+                "&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
+                "&daily=temperature_2m_max,weather_code"
+                "&timezone=Africa/Bujumbura&forecast_days=6&wind_speed_unit=kmh"
+            )
             response = requests.get(url, timeout=5)
             response.raise_for_status()
             data = response.json()
-            
-            # Extraction du temps actuel (premier élément de la liste)
-            current_data = data["list"][0]
-            
-            # Extraction des prévisions quotidiennes (on prend un point par jour à midi environ)
+
+            current = data["current"]
+            cur_desc, cur_icon = WeatherService.WMO_CODES.get(
+                int(current.get("weather_code", 0)), ("Conditions inconnues", "01d")
+            )
+
+            daily = data.get("daily", {})
             daily_forecast = []
-            seen_days = set()
-            
-            for item in data["list"]:
-                dt = datetime.fromtimestamp(item["dt"])
-                day_name = dt.strftime("%a") # Ex: Lun, Mar...
-                
-                # On évite le jour actuel et on prend une mesure par jour
-                if day_name not in seen_days and len(daily_forecast) < 5:
-                    daily_forecast.append({
-                        "date": day_name,
-                        "temp": round(item["main"]["temp"]),
-                        "icon": item["weather"][0]["icon"],
-                        "desc": item["weather"][0]["description"].capitalize()
-                    })
-                    seen_days.add(day_name)
+            dates = daily.get("time", [])
+            temps = daily.get("temperature_2m_max", [])
+            codes = daily.get("weather_code", [])
+            # On saute le jour courant (index 0) et on garde 5 jours.
+            for i in range(1, min(len(dates), 6)):
+                day = datetime.strptime(dates[i], "%Y-%m-%d")
+                desc, icon = WeatherService.WMO_CODES.get(int(codes[i]), ("Conditions inconnues", "01d"))
+                daily_forecast.append({
+                    "date": WeatherService.JOURS_FR[day.weekday()],
+                    "temp": round(temps[i]),
+                    "icon": icon,
+                    "desc": desc,
+                })
 
             return {
                 "city": province,
                 "current": {
-                    "temp": round(current_data["main"]["temp"]),
-                    "humidity": current_data["main"]["humidity"],
-                    "wind_speed": round(current_data["wind"]["speed"] * 3.6), # m/s to km/h
-                    "description": current_data["weather"][0]["description"].capitalize(),
-                    "icon": current_data["weather"][0]["icon"]
+                    "temp": round(current["temperature_2m"]),
+                    "humidity": current["relative_humidity_2m"],
+                    "wind_speed": round(current["wind_speed_10m"]),
+                    "description": cur_desc,
+                    "icon": cur_icon,
                 },
                 "forecast": daily_forecast
             }
-            
+
         except Exception as e:
             print(f"Erreur API Météo: {e}")
             # Fallback sur un mock basique en cas d'erreur

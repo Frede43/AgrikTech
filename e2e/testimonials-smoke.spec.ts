@@ -12,7 +12,7 @@ test("buyer submits testimonial, admin approves it, and home displays it", async
   const quote = `SMOKE TEST TEMOIGNAGE UI ${seed}`;
   const adminNote = `Validation smoke test UI ${seed}`;
 
-  const buyerResponse = await request.post(`${API_URL}/users/`, {
+  const buyerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: {
       phone_number: buyerPhone,
       role: "buyer",
@@ -24,7 +24,7 @@ test("buyer submits testimonial, admin approves it, and home displays it", async
   });
   expect(buyerResponse.ok()).toBeTruthy();
 
-  const adminResponse = await request.post(`${API_URL}/users/`, {
+  const adminResponse = await request.post(`${API_URL}/testing/users/`, {
     data: {
       phone_number: adminPhone,
       role: "admin",
@@ -54,7 +54,7 @@ test("buyer submits testimonial, admin approves it, and home displays it", async
 
   await expect(page.getByText("Votre témoignage a bien été envoyé en attente de validation.")).toBeVisible();
   await expect(page.getByText(`“${quote}”`)).toBeVisible();
-  await expect(page.getByText("En attente")).toBeVisible();
+  await expect(page.getByText("En attente", { exact: true })).toBeVisible();
 
   const publicBefore = (await (await request.get(`${API_URL}/testimonials`)).json()) as Array<{ quote_fr?: string }>;
   expect(publicBefore.some((item) => item.quote_fr === quote)).toBe(false);
@@ -92,5 +92,5 @@ test("buyer submits testimonial, admin approves it, and home displays it", async
   );
   await page.goto("/");
   await homeTestimonialsPromise;
-  await expect(page.getByText(quote)).toBeVisible();
+  await expect(page.getByText(quote).first()).toBeVisible();
 });

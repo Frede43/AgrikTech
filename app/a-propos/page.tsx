@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -8,6 +8,28 @@ import { Sprout, Target, Eye, Users } from "lucide-react";
 
 export default function AboutPage() {
     const { text } = useLanguage();
+    const [farmerCount, setFarmerCount] = useState(1200);
+
+    useEffect(() => {
+        const loadStats = async () => {
+            try {
+                const { apiFetch } = await import("@/lib/api-config");
+                const data = await apiFetch("/stats/public");
+                if (data && typeof data.farmer_count === "number") {
+                    setFarmerCount(data.farmer_count);
+                }
+            } catch (err) {
+                console.error("Failed to load public stats", err);
+            }
+        };
+        loadStats();
+    }, []);
+
+    const sections = [
+        { icon: Sprout, title: text.aboutWhy1Title, desc: text.aboutWhy1Desc },
+        { icon: Users, title: text.aboutWhy2Title, desc: text.aboutWhy2Desc.replace("{count}", farmerCount.toLocaleString()) },
+        { icon: Eye, title: text.aboutWhy3Title, desc: text.aboutWhy3Desc }
+    ];
 
     return (
         <div className="min-h-screen bg-background">
@@ -57,11 +79,7 @@ export default function AboutPage() {
                     <section className="space-y-8">
                         <h2 className="text-3xl font-bold text-center">{text.aboutWhyTitle}</h2>
                         <div className="grid md:grid-cols-3 gap-6">
-                            {[
-                                { icon: Sprout, title: text.aboutWhy1Title, desc: text.aboutWhy1Desc },
-                                { icon: Users, title: text.aboutWhy2Title, desc: text.aboutWhy2Desc },
-                                { icon: Eye, title: text.aboutWhy3Title, desc: text.aboutWhy3Desc }
-                            ].map((item, i) => (
+                            {sections.map((item, i) => (
                                 <div key={i} className="text-center p-6 bg-white rounded-2xl border border-border">
                                     <item.icon className="w-8 h-8 mx-auto mb-4 text-primary" />
                                     <h3 className="font-bold text-lg mb-2">{item.title}</h3>

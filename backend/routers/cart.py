@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 from pydantic import BaseModel
+from decimal import Decimal
 
 import backend.models as models
 from backend.database import get_db
@@ -50,6 +51,7 @@ def validate_cart(req: CartValidateRequest, db: Session = Depends(get_db)):
                 "status": "unavailable",
                 "issues": ["Ce produit n'est plus disponible au catalogue."],
                 "line_total": 0,
+                "farmer_id": 0
             })
             valid = False
             continue
@@ -57,15 +59,15 @@ def validate_cart(req: CartValidateRequest, db: Session = Depends(get_db)):
         issues = []
         status = "ok"
         validated_qty = item.quantity
-        current_price = float(product.price_per_kg)
+        current_price = float(cast(Decimal, product.price_per_kg))
 
         if not product.is_active:
             status = "unavailable"
             validated_qty = 0
             issues.append(f"Le produit {product.name} a été retiré de la vente.")
-        elif float(product.quantity_kg) < item.quantity:
+        elif float(cast(Decimal, product.quantity_kg)) < item.quantity:
             status = "stock_changed"
-            validated_qty = max(0, float(product.quantity_kg))
+            validated_qty = max(0, float(cast(Decimal, product.quantity_kg)))
             if validated_qty == 0:
                 status = "unavailable"
                 issues.append(f"Le produit {product.name} est en rupture de stock.")
@@ -91,10 +93,11 @@ def validate_cart(req: CartValidateRequest, db: Session = Depends(get_db)):
             "validated_quantity": validated_qty,
             "requested_price": item.price,
             "current_price": current_price,
-            "available_stock": float(product.quantity_kg),
+            "available_stock": float(cast(Decimal, product.quantity_kg)),
             "status": status,
             "issues": issues,
             "line_total": line_total,
+            "farmer_id": product.farmer_id
         })
 
     return {

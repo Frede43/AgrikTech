@@ -7,7 +7,7 @@ test("farmer product creation is queued offline then replayed when network retur
   const seed = createE2eSeed();
   const farmerPhone = createPhoneNumber("61", seed);
 
-  const farmerResponse = await request.post(`${API_URL}/users/`, {
+  const farmerResponse = await request.post(`${API_URL}/testing/users/`, {
     data: { phone_number: farmerPhone, role: "farmer", name: "Fermier Offline E2E", province: "Ngozi" },
   });
   expect(farmerResponse.ok()).toBeTruthy();

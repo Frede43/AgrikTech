@@ -53,10 +53,11 @@ export default function BuyerNotificationsPage() {
   }[lang];
 
   const handleDismiss = async (notificationId: string) => {
+    if (!session) return;
     setDismissingIds((current) => (current.includes(notificationId) ? current : [...current, notificationId]));
 
     try {
-      await apiFetch("/notifications/dismiss", {
+      await apiFetch(`/notifications/${session.userId}/dismiss`, {
         method: "POST",
         body: JSON.stringify({ notification_id: notificationId }),
       });

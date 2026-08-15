@@ -12,7 +12,11 @@ import {
   Search,
   Trash2,
   XCircle,
+  QrCode,
+  Printer,
+  Download,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +66,7 @@ interface Product {
   harvested_at: string;
   rating: number;
   image_url: string | null;
+  trace_token: string | null;
 }
 
 interface ProductFormState {
@@ -108,6 +113,7 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false);
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [qrProduct, setQrProduct] = useState<Product | null>(null);
 
   const CATEGORY_OPTIONS = [
     { label: text.stockLegumes, value: "legumes" },
@@ -495,6 +501,15 @@ export default function StockPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-9 w-9 rounded-xl p-0 border-border text-primary hover:bg-primary/10"
+                  onClick={() => setQrProduct(product)}
+                >
+                  <QrCode className="w-4 h-4" />
+                  <span className="sr-only">QR Code</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="h-9 w-9 rounded-xl p-0 border-border text-destructive hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => setDeleteProduct(product)}
                 >
@@ -778,6 +793,70 @@ export default function StockPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={Boolean(qrProduct)} onOpenChange={() => setQrProduct(null)}>
+        <DialogContent className="rounded-[2.5rem] max-w-sm overflow-hidden p-0 border-0 shadow-2xl">
+          <div className="bg-primary p-6 text-center text-white relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+              <div className="absolute -top-10 -left-10 w-32 h-32 border-8 border-white rounded-full" />
+            </div>
+            <DialogHeader className="p-0 space-y-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">Certificat de Traçabilité</p>
+                <DialogTitle className="text-xl font-black text-white">{qrProduct?.name}</DialogTitle>
+                <DialogDescription className="sr-only">
+                    Ce QR Code contient les informations de traçabilité pour {qrProduct?.name}.
+                </DialogDescription>
+            </DialogHeader>
+          </div>
+          
+          <div className="p-8 flex flex-col items-center gap-6">
+            <div className="p-4 rounded-3xl bg-white shadow-inner border-2 border-primary/10">
+              {qrProduct && (
+                <QRCodeSVG 
+                  value={`${window.location.origin}/trace/${qrProduct.trace_token}`}
+                  size={180}
+                  level="H"
+                  includeMargin={true}
+                  imageSettings={{
+                    src: "/favicon.ico",
+                    x: undefined,
+                    y: undefined,
+                    height: 24,
+                    width: 24,
+                    excavate: true,
+                  }}
+                />
+              )}
+            </div>
+
+            <div className="text-center space-y-1">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Code Unique</p>
+              <p className="text-lg font-black text-foreground">{qrProduct?.trace_token || "AGRI-GEN-..."}</p>
+            </div>
+
+            <div className="w-full pt-4 space-y-3">
+              <Button 
+                onClick={() => window.print()}
+                className="w-full h-14 rounded-2xl font-black gap-2 shadow-lg shadow-primary/20"
+              >
+                <Printer className="w-4 h-4" /> Imprimer l'Étiquette
+              </Button>
+              <Button 
+                variant="ghost"
+                onClick={() => setQrProduct(null)}
+                className="w-full h-12 rounded-2xl font-bold text-muted-foreground"
+              >
+                Fermer
+              </Button>
+            </div>
+          </div>
+          
+          <div className="bg-secondary/30 p-4 text-center">
+            <p className="text-[9px] font-bold text-muted-foreground leading-relaxed">
+              Ce QR Code permet au livreur et à l'acheteur de vérifier l'origine exacte du produit sur la plateforme AgriConnect.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

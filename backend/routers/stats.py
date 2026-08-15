@@ -20,6 +20,27 @@ def get_market_prices(province: Optional[str] = None, db: Session = Depends(get_
     """
     return market_service.get_live_prices(db, province)
 
+@router.get("/public")
+def get_public_stats(db: Session = Depends(get_db)):
+    """
+    Retourne les statistiques publiques pour la landing page.
+    """
+    from sqlalchemy import func
+    farmer_count = db.query(func.count(models.User.id)).filter(
+        models.User.role.in_(config.FARMER_ROLE_VALUES),
+        models.User.is_active == True
+    ).scalar() or 0
+    
+    province_count = db.query(func.count(func.distinct(models.User.province))).filter(
+        models.User.province.isnot(None),
+        models.User.role.in_(config.FARMER_ROLE_VALUES)
+    ).scalar() or 0
+    
+    return {
+        "farmer_count": farmer_count,
+        "province_count": province_count
+    }
+
 import fastapi
 
 @router.get("/admin", response_model=schemas.AdminStats)
