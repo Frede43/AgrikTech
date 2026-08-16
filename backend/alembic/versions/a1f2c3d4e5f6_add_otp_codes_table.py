@@ -19,7 +19,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
+    """Upgrade schema.
+
+    La révision d63efde21547 crée désormais tout le schéma courant via
+    Base.metadata (donc otp_codes aussi, puisque le modèle existe déjà à ce
+    moment-là). On ne recrée ici que si la table n'existe pas encore, pour
+    rester applicable sur une base migrée avant ce correctif.
+    """
+    bind = op.get_bind()
+    if sa.inspect(bind).has_table('otp_codes'):
+        return
+
     op.create_table(
         'otp_codes',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -36,6 +46,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
+    bind = op.get_bind()
+    if not sa.inspect(bind).has_table('otp_codes'):
+        return
     op.drop_index(op.f('ix_otp_codes_phone_number'), table_name='otp_codes')
     op.drop_index(op.f('ix_otp_codes_id'), table_name='otp_codes')
     op.drop_table('otp_codes')
