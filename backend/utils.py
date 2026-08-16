@@ -192,6 +192,23 @@ def calculate_road_distance_km_sync(u1: Optional[models.User], u2: Optional[mode
         pass
     return None
 
+def get_standard_commission_rate(db: Session) -> Decimal:
+    """
+    Taux de commission "hors promo" — modifiable par un admin depuis
+    Admin > Paramètres (SystemSettings.commission_rate), sans déploiement.
+    Avant ce correctif, ce champ se sauvegardait sans effet réel : le calcul
+    de commission lisait uniquement config.DEFAULT_COMMISSION_RATE, jamais
+    la base — un admin pouvait "enregistrer" une nouvelle valeur qui ne
+    changeait jamais rien sur les commandes.
+
+    Repli sur DEFAULT_COMMISSION_RATE tant qu'aucune ligne SystemSettings
+    n'existe encore (elle n'est créée qu'au premier GET /admin/settings).
+    """
+    settings = db.query(models.SystemSettings).first()
+    if settings and settings.commission_rate is not None:
+        return Decimal(str(settings.commission_rate))
+    return config.DEFAULT_COMMISSION_RATE
+
 def compute_delivery_fee(buyer: Optional[models.User], farmer: Optional[models.User]) -> Decimal:
     """
     Frais de livraison facturé à l'acheteur, versé en intégralité au livreur

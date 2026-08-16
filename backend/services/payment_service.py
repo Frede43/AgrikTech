@@ -60,7 +60,7 @@ class PaymentService:
             models.Order.id != order.id,
         ).count()
         is_promo = prior_completed_sales < config.PROMO_SALES_THRESHOLD
-        commission_rate = config.PROMO_COMMISSION_RATE if is_promo else config.DEFAULT_COMMISSION_RATE
+        commission_rate = config.PROMO_COMMISSION_RATE if is_promo else utils.get_standard_commission_rate(db)
 
         commission_amount = subtotal_ht * commission_rate
         net_to_farmer = product_total_ttc - commission_amount
