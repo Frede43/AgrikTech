@@ -461,6 +461,8 @@ class FarmerStats(BaseModel):
     order_count: int
     pending_payout: Decimal
     weekly_sales: List[dict]
+    current_commission_rate: Decimal
+    promo_sales_remaining: int
 
 class AdminStats(BaseModel):
     gmv: Decimal

@@ -457,12 +457,26 @@ def get_farmer_stats(user_id: int, request: Request, db: Session = Depends(get_d
         models.WithdrawalRequest.status == "pending"
     ).scalar() or 0
 
+    # Taux promo d'onboarding (voir payment_service.release_funds_to_farmer) :
+    # mêmes statuts que ceux qui déclenchent réellement le versement des fonds.
+    completed_sales = db.query(func.count(models.Order.id)).filter(
+        models.Order.farmer_id == user_id,
+        models.Order.status.in_(["delivered", "COMPLETED"]),
+    ).scalar() or 0
+    current_commission_rate = (
+        config.PROMO_COMMISSION_RATE if completed_sales < config.PROMO_SALES_THRESHOLD
+        else config.DEFAULT_COMMISSION_RATE
+    )
+    promo_sales_remaining = max(0, config.PROMO_SALES_THRESHOLD - completed_sales)
+
     return {
         "balance": target_user.balance,
         "total_sales_bif": sales,
         "order_count": order_count,
         "pending_payout": pending_payout,
-        "weekly_sales": [] # Mock for now
+        "weekly_sales": [], # Mock for now
+        "current_commission_rate": current_commission_rate,
+        "promo_sales_remaining": promo_sales_remaining,
     }
 
 @router.get("/farmer/{user_id}/dashboard")

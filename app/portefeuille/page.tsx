@@ -15,6 +15,7 @@ import {
   Clock,
   Banknote,
   RefreshCw,
+  Percent,
 } from "lucide-react";
 
 import { apiFetch, redirectToLoginIfUnauthorized } from "@/lib/api-config";
@@ -42,6 +43,8 @@ interface WalletTransaction {
 interface FarmerStats {
   balance: number;
   pending_payout: number;
+  current_commission_rate: number;
+  promo_sales_remaining: number;
 }
 
 export default function WalletPage() {
@@ -49,6 +52,8 @@ export default function WalletPage() {
   const [user, setUser] = useState<WalletUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [pending, setPending] = useState<number>(0);
+  const [commissionRate, setCommissionRate] = useState<number>(0.05);
+  const [promoSalesRemaining, setPromoSalesRemaining] = useState<number>(0);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState("");
@@ -71,6 +76,8 @@ export default function WalletPage() {
     setUser(currentUser);
     setBalance(currentUser.balance ?? currentStats.balance ?? 0);
     setPending(currentStats.pending_payout ?? 0);
+    setCommissionRate(currentStats.current_commission_rate ?? 0.05);
+    setPromoSalesRemaining(currentStats.promo_sales_remaining ?? 0);
     setTransactions((transData as WalletTransaction[]).filter((t) => t.type === "payout"));
     setPhoneNumber(currentUser.phone_number || "");
   };
@@ -241,6 +248,26 @@ export default function WalletPage() {
           </div>
         </div>
       </div>
+
+      {promoSalesRemaining > 0 && (
+        <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Percent className="w-4 h-4 text-primary" />
+          </div>
+          <div className="text-sm">
+            <p className="font-bold text-foreground">
+              {lang === "fr"
+                ? `Tarif de lancement : ${(commissionRate * 100).toFixed(0)}% de commission`
+                : `Igiciro co gutangura : komisiyoni ya ${(commissionRate * 100).toFixed(0)}%`}
+            </p>
+            <p className="text-muted-foreground mt-0.5">
+              {lang === "fr"
+                ? `Encore ${promoSalesRemaining} vente${promoSalesRemaining > 1 ? "s" : ""} à ce tarif réduit avant de passer au taux standard.`
+                : `Ivyo bigaruka ${promoSalesRemaining} imbere yo gushira ku giciro nyaco.`}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Transfer form */}

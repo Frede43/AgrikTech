@@ -28,6 +28,14 @@ SESSION_MAX_AGE = 7 * 24 * 60 * 60
 
 # Business Constants
 DEFAULT_COMMISSION_RATE = Decimal("0.05")
+# Taux promotionnel d'onboarding : abaisse la barrière à l'entrée pour un
+# nouveau fermier (au Burundi, les intermédiaires informels prennent souvent
+# 15-30% — 2% sur les premières ventes prouve la valeur avant d'en extraire).
+# S'applique aux N premières ventes livrées de CHAQUE fermier (voir
+# payment_service.release_funds_to_farmer), pas à une fenêtre calendaire :
+# reste valable pour tout nouveau fermier, quelle que soit sa date d'inscription.
+PROMO_COMMISSION_RATE = Decimal("0.02")
+PROMO_SALES_THRESHOLD = 20
 DEFAULT_SUPPORT_PHONE = "+25776000000"
 DEFAULT_SUPPORT_WHATSAPP = "+25776000000"
 MIN_WITHDRAWAL_AMOUNT = Decimal("10000.0")

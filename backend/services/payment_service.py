@@ -31,10 +31,14 @@ class PaymentService:
         return True
 
     @staticmethod
-    def release_funds_to_farmer(db: Session, order: models.Order) -> bool:
+    def release_funds_to_farmer(db: Session, order: models.Order) -> dict:
         """
         Libère les fonds de l'Escrow vers le solde du fermier après livraison.
-        Déduit la commission AgriConnect (5% HT par défaut).
+        Déduit la commission AgriConnect : taux promotionnel (PROMO_COMMISSION_RATE)
+        sur les PROMO_SALES_THRESHOLD premières ventes livrées du fermier, puis
+        DEFAULT_COMMISSION_RATE ensuite. Compte les ventes du fermier lui-même
+        (order.farmer_id), y compris celles vendues au nom d'une coopérative dont
+        il est membre — même personne, même courbe d'apprentissage.
         """
         if order.status not in ["delivered", "COMPLETED"]:
             raise HTTPException(
@@ -45,7 +49,14 @@ class PaymentService:
         total_ttc = order.total_price or Decimal("0")
         subtotal_ht = order.subtotal_price or total_ttc
 
-        commission_rate = config.DEFAULT_COMMISSION_RATE
+        prior_completed_sales = db.query(models.Order).filter(
+            models.Order.farmer_id == order.farmer_id,
+            models.Order.status.in_(["delivered", "COMPLETED"]),
+            models.Order.id != order.id,
+        ).count()
+        is_promo = prior_completed_sales < config.PROMO_SALES_THRESHOLD
+        commission_rate = config.PROMO_COMMISSION_RATE if is_promo else config.DEFAULT_COMMISSION_RATE
+
         commission_amount = subtotal_ht * commission_rate
         net_to_farmer = total_ttc - commission_amount
 
@@ -68,13 +79,22 @@ class PaymentService:
             entity_type="order",
             entity_id=int(order.id),  # type: ignore
             detail=(
-                f"Commission de {commission_amount} BIF collectée sur commande "
+                f"Commission de {commission_amount} BIF collectée "
+                f"({'taux promo ' if is_promo else 'taux standard '}"
+                f"{commission_rate * 100}%) sur commande "
                 f"{utils.format_order_reference(int(order.id))}. "  # type: ignore
                 f"Net fermier: {net_to_farmer} BIF."
             ),
         ))
 
-        return True
+        return {
+            "released": True,
+            "commission_rate": commission_rate,
+            "commission_amount": commission_amount,
+            "net_to_farmer": net_to_farmer,
+            "promo_applied": is_promo,
+            "sale_number": prior_completed_sales + 1,
+        }
 
     @staticmethod
     def cancel_order_and_refund(
