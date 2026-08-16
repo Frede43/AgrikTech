@@ -16,7 +16,7 @@ from backend.routers import (
     auth, market, admin, products, orders, wallet, disputes, community,
     categories, stats, users, testimonials, notifications, platform,
     support, reviews, cart, stock_movements, weather, cooperatives,
-    equipment, messages, credits, obr, payments, bootstrap
+    equipment, messages, credits, obr, payments, bootstrap, ussd
 )
 
 # En mode test e2e, on repart d'une base vierge à chaque démarrage du serveur
@@ -61,6 +61,7 @@ app.include_router(credits.router)
 app.include_router(obr.router)
 app.include_router(payments.router)
 app.include_router(bootstrap.router)
+app.include_router(ussd.router)
 
 if config.E2E_TEST_MODE:
     from backend.routers import testing as testing_router
