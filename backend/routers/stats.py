@@ -240,18 +240,24 @@ def get_admin_stats(request: fastapi.Request, db: Session = Depends(get_db)):
         models.WithdrawalRequest.status == "completed"
     ).scalar() or 0
 
-    # ── Monthly GMV (6 derniers mois) ─────────────────────────────────────────
-    monthly_results = db.query(
-        func.strftime("%Y-%m", models.Order.created_at).label("month"),
-        func.sum(models.Order.total_price).label("gmv"),
-        func.count(models.Order.id).label("orders"),
-    ).filter(
-        models.Order.status.in_(COMPLETED_STATUSES)
-    ).group_by("month").order_by("month").limit(6).all()
+    # ── Monthly GMV (6 derniers mois) ───────────────────────────────────────
+    # Regroupement en Python plutôt qu'en SQL : func.strftime() est propre à
+    # SQLite et n'existe pas sur PostgreSQL (utilisé en production).
+    completed_orders = db.query(
+        models.Order.created_at, models.Order.total_price
+    ).filter(models.Order.status.in_(COMPLETED_STATUSES)).all()
+
+    monthly_agg: dict[str, dict] = {}
+    for created_at, total_price in completed_orders:
+        if not created_at:
+            continue
+        bucket = monthly_agg.setdefault(created_at.strftime("%Y-%m"), {"gmv": Decimal("0"), "orders": 0})
+        bucket["gmv"] += total_price or Decimal("0")
+        bucket["orders"] += 1
 
     monthly_gmv = [
-        {"month": m, "gmv": float(str(g or 0)), "orders": int(str(o or 0))}
-        for m, g, o in monthly_results
+        {"month": month, "gmv": float(data["gmv"]), "orders": data["orders"]}
+        for month, data in sorted(monthly_agg.items())[-6:]
     ]
     if not monthly_gmv:
         monthly_gmv = [{"month": now.strftime("%Y-%m"), "gmv": 0, "orders": 0}]
