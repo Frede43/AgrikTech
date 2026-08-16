@@ -67,47 +67,54 @@ export function useOnlineStatus() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let cancelled = false;
+
     const checkStatus = async () => {
       if (!navigator.onLine) {
-        setIsOnline(false);
+        if (!cancelled) setIsOnline(false);
         return;
       }
-      
+
       // Si le navigateur dit "online", on vérifie réellement avec un ping léger sur l'API
       try {
-        const response = await fetch(buildApiUrl("/api/health"), { 
-          method: "HEAD", 
+        const response = await fetch(buildApiUrl("/api/health"), {
+          method: "HEAD",
           cache: "no-store",
           // On évite d'envoyer les cookies pour un simple ping réseau
-          credentials: "omit" 
+          credentials: "omit"
         }).catch(() => ({ ok: false }));
-        setIsOnline(response.ok);
+        if (!cancelled) setIsOnline(response.ok);
       } catch {
-        setIsOnline(false);
+        if (!cancelled) setIsOnline(false);
       }
     };
+
+    // Vérifie la connectivité réelle dès le montage : navigator.onLine peut
+    // renvoyer un faux "offline" transitoire (fréquent sur réseaux mobiles
+    // instables), sans quoi le bandeau restait bloqué indéfiniment.
+    void checkStatus();
 
     const handleOnline = () => {
       // Attendre un court instant pour laisser le réseau se stabiliser
       setTimeout(checkStatus, 1000);
     };
-    
+
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    
-    // Vérification périodique toutes les 30 secondes si on est offline
-    const interval = setInterval(() => {
-      if (!isOnline) checkStatus();
-    }, 30000);
+
+    // Vérification périodique toutes les 30 secondes (détecte aussi bien le
+    // retour en ligne qu'une panne backend survenue en cours de session).
+    const interval = setInterval(checkStatus, 30000);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       clearInterval(interval);
     };
-  }, [isOnline]);
+  }, []);
 
   return isOnline;
 }

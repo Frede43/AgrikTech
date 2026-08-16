@@ -128,7 +128,7 @@ export default function LandingPage() {
   const { lang, text } = useLanguage();
   const [slide, setSlide] = useState(0);
   const [testimonialRecords, setTestimonialRecords] = useState<PublicTestimonial[]>([]);
-  const [publicStats, setPublicStats] = useState({ farmer_count: 1200, province_count: 9 });
+  const [publicStats, setPublicStats] = useState<{ farmer_count: number; province_count: number } | null>(null);
   const { prices, loading: pricesLoading } = useLivePrices();
   const fallbackHeroSlides: HeroSlide[] = lang === "fr"
     ? [
@@ -211,9 +211,11 @@ export default function LandingPage() {
         ? copy.heroInsightDown
         : copy.heroInsightStable
     : copy.heroLiveTitle;
+  // `?? ` (pas `||`) : un vrai compte de 0 (plateforme neuve) ne doit pas être
+  // remplacé par le repli — seul `null` (avant le premier fetch, ou échec) l'est.
   const socialProofLabel = text.socialProof
-    .replace("{count}", (publicStats.farmer_count || 1200).toLocaleString())
-    .replace("{provinces}", String(publicStats.province_count || 9))
+    .replace("{count}", (publicStats?.farmer_count ?? 1200).toLocaleString())
+    .replace("{provinces}", String(publicStats?.province_count ?? 9))
     + (activeMarket ? ` · ${prices.length} ${copy.heroLiveProducts}` : "");
 
   // Auto-advance carousel
