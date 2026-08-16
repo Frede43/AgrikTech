@@ -37,6 +37,7 @@ function ProfileForm() {
     const [commune, setCommune] = useState("");
     const [latitude, setLatitude] = useState("");
     const [longitude, setLongitude] = useState("");
+    const [idNumber, setIdNumber] = useState("");
     const [role, setRole] = useState<CanonicalRole>(initialRole);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -65,6 +66,7 @@ function ProfileForm() {
                     commune: commune || null,
                     latitude: latitude ? Number(latitude) : null,
                     longitude: longitude ? Number(longitude) : null,
+                    id_number: idNumber || null,
                     role
                 })
             }) as { user_id?: number | string; role?: string };
@@ -172,6 +174,21 @@ function ProfileForm() {
                 <p className="text-[11px] text-muted-foreground -mt-2">
                     Coordonnées GPS facultatives mais recommandées pour améliorer la livraison et les dashboards.
                 </p>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                        Numéro CNI ou passeport <span className="text-muted-foreground font-normal">(optionnel)</span>
+                    </label>
+                    <Input
+                        placeholder="Ex: CI123456789"
+                        value={idNumber}
+                        onChange={(e) => setIdNumber(e.target.value)}
+                        className="h-11 rounded-xl"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                        Nécessaire pour retirer vos gains ou demander un crédit agricole. Vous pourrez aussi le renseigner plus tard, avec une photo de votre pièce, depuis vos paramètres.
+                    </p>
+                </div>
 
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Votre rôle principal</label>

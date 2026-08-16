@@ -16,6 +16,10 @@ export interface UserProfile {
     longitude?: number | null;
     balance?: number;
     is_active?: boolean;
+    id_number?: string | null;
+    id_document_url?: string | null;
+    kyc_status?: string | null;
+    kyc_notes?: string | null;
 }
 
 export function getUserInitials(name?: string | null, fallback = "--") {

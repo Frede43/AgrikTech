@@ -18,6 +18,7 @@ import {
   Loader2,
   Building2,
   Coins,
+  IdCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -105,6 +106,7 @@ export function AdminSidebar({ mobile = false }: AdminSidebarProps) {
     { href: "/admin/obr", label: copy.obr, icon: Building2 },
     { href: "/admin/credits", label: copy.credits, icon: Coins },
     { href: "/admin/cooperatives", label: lang === "fr" ? "Coopératives" : "Amashirahamwe", icon: ShieldCheck },
+    { href: "/admin/kyc", label: lang === "fr" ? "Vérification KYC" : "Kwemeza uwo bari", icon: IdCard },
     { href: "/admin/utilisateurs", label: copy.users, icon: Users },
   ];
 
