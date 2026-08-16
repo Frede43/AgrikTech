@@ -51,7 +51,7 @@ def set_authenticated_session(response: Response, user: models.User, db: Session
         value=session_token,
         max_age=config.SESSION_MAX_AGE,
         httponly=True,
-        samesite="lax",
+        samesite=config.SESSION_SAMESITE,
         secure=config.SESSION_HTTPS_ONLY,
         path="/",
     )
@@ -67,7 +67,7 @@ def clear_authenticated_session(request: Request, db: Session, response: Optiona
         response.delete_cookie(
             key=config.SESSION_COOKIE_NAME,
             httponly=True,
-            samesite="lax",
+            samesite=config.SESSION_SAMESITE,
             secure=config.SESSION_HTTPS_ONLY,
             path="/",
         )

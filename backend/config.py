@@ -16,6 +16,14 @@ SESSION_COOKIE_NAME = "agriconnect_session"
 SESSION_USER_ID_KEY = "user_id"
 SESSION_ROLE_KEY = "role"
 SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "false").strip().lower() == "true"
+# "lax" convient en dev (front/back sur localhost = même site). En prod,
+# front (Vercel) et back (Render) sont des domaines différents (cross-site) :
+# un cookie SameSite=Lax n'est jamais renvoyé sur les fetch() cross-site,
+# il faut "none" — ce qui exige aussi Secure (HTTPS), sinon les navigateurs
+# rejettent le cookie silencieusement.
+SESSION_SAMESITE = os.getenv("SESSION_SAMESITE", "lax").strip().lower()
+if SESSION_SAMESITE == "none" and not SESSION_HTTPS_ONLY:
+    SESSION_SAMESITE = "lax"
 SESSION_MAX_AGE = 7 * 24 * 60 * 60
 
 # Business Constants

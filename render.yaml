@@ -25,6 +25,10 @@ services:
         sync: false
       - key: SESSION_HTTPS_ONLY
         value: "true"
+      # Front (Vercel) et back (Render) sont deux domaines distincts : le
+      # cookie de session doit être cross-site (SameSite=None + Secure).
+      - key: SESSION_SAMESITE
+        value: "none"
       - key: SMS_PROVIDER
         value: console
       - key: TWILIO_ACCOUNT_SID
