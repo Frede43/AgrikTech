@@ -79,6 +79,11 @@ if IS_PRODUCTION and SECRET_KEY == _DEFAULT_SECRET_KEY:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+# Bootstrap du premier compte admin (sans accès shell, ex. Render plan gratuit).
+# Voir routers/bootstrap.py : POST /bootstrap/admin avec X-Bootstrap-Secret.
+# Se désactive automatiquement dès qu'un admin existe déjà en base.
+ADMIN_BOOTSTRAP_SECRET = os.getenv("ADMIN_BOOTSTRAP_SECRET", "")
+
 # OTP
 OTP_TTL_SECONDS = int(os.getenv("OTP_TTL_SECONDS", "300"))
 OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
