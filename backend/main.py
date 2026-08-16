@@ -73,9 +73,16 @@ def health_check():
     # pas automatiquement pour une route déclarée en GET seul.
     return {"status": "ok"}
 
-if not os.path.exists("static"):
-    os.makedirs("static")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Chemin absolu (dérivé de __file__, pas du CWD du process) : products.py et
+# users.py écrivent déjà leurs uploads dans backend/static/uploads/... via ce
+# même calcul. Un chemin relatif "static" ici pointait vers <CWD>/static —
+# différent de backend/static dès que le process démarre depuis la racine du
+# projet (cas réel : `uvicorn backend.main:app` sur Render) — les fichiers
+# uploadés atterrissaient dans un dossier jamais servi, 404 systématique.
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+if not os.path.exists(STATIC_DIR):
+    os.makedirs(STATIC_DIR)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 def read_root():

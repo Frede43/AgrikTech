@@ -18,9 +18,9 @@ def request_credit(payload: schemas.CreditRequestCreate, request: Request, db: S
     if not utils.user_has_role(user, "farmer"):
         raise HTTPException(status_code=403, detail="Réservé aux fermiers.")
     
-    # Vérifier KYC
-    if user.kyc_status != "approved":
-        raise HTTPException(status_code=403, detail="KYC non approuvé. Crédit impossible.")
+    # Vérifier KYC ("verified" : seule valeur que POST /admin/users/{id}/verify-kyc écrit réellement)
+    if user.kyc_status != "verified":
+        raise HTTPException(status_code=403, detail="KYC non vérifié. Crédit impossible.")
     
     db_credit = models.CreditRequest(
         user_id=user.id,

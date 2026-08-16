@@ -56,6 +56,8 @@ class User(UserBase):
     id: int
     balance: Decimal
     is_active: bool
+    kyc_reviewed_at: Optional[datetime] = None
+    kyc_notes: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

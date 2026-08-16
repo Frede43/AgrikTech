@@ -32,7 +32,7 @@ class User(Base):
     nationality = Column(String, default="Burundi")
     id_number = Column(String, nullable=True, index=True) # CNI ou Passeport
     id_document_url = Column(String, nullable=True)
-    kyc_status = Column(String, default="pending", index=True) # pending, approved, rejected
+    kyc_status = Column(String, default="pending", index=True) # pending, verified, rejected
     kyc_reviewed_at = Column(DateTime, nullable=True)
     kyc_notes = Column(String, nullable=True)
 

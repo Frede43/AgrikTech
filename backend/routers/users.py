@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import os, uuid
 
 import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
 from backend.database import get_db
@@ -11,6 +12,10 @@ router = APIRouter(
     prefix="/users",
     tags=["Users & Profiles"]
 )
+
+KYC_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads", "kyc")
+KYC_ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "pdf"}
+KYC_MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 Mo
 
 @router.get("", response_model=List[schemas.User])
 @router.get("/", response_model=List[schemas.User])
@@ -116,6 +121,34 @@ def update_user_profile(user_id: int, payload: schemas.UserUpdate, request: Requ
     db.refresh(user)
     return user
 
+
+@router.post("/kyc/upload-document")
+async def upload_kyc_document(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """
+    Upload la photo/scan d'une pièce d'identité pour le dossier KYC.
+    Contrairement à /products/{id}/upload-image/, exige une session active :
+    un document d'identité ne doit jamais pouvoir être déposé anonymement.
+    """
+    current_user = utils.get_authenticated_user(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401)
+
+    original_name = file.filename or ""
+    extension = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
+    if extension not in KYC_ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Format non autorisé (jpg, jpeg, png ou pdf uniquement).")
+
+    contents = await file.read()
+    if len(contents) > KYC_MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (5 Mo maximum).")
+
+    os.makedirs(KYC_UPLOAD_DIR, exist_ok=True)
+    filename = f"kyc_{current_user.id}_{uuid.uuid4().hex[:8]}.{extension}"
+    file_path = os.path.join(KYC_UPLOAD_DIR, filename)
+    with open(file_path, "wb") as buffer:
+        buffer.write(contents)
+
+    return {"document_url": f"/static/uploads/kyc/{filename}"}
 
 @router.post("/kyc/submit", response_model=schemas.User)
 def submit_kyc(payload: schemas.UserKycSubmit, request: Request, db: Session = Depends(get_db)):
