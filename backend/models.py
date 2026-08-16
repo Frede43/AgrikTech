@@ -307,6 +307,8 @@ class SystemSettings(Base):
     maintenance_mode = Column(Boolean, default=False)
     support_phone = Column(String, default="+25776000000")
     support_whatsapp = Column(String, default="+25776000000")
+    support_email = Column(String, default="contact@agriconnect.bi")
+    support_address = Column(String, default="Bujumbura, Burundi (Rohero II)")
     updated_at = Column(DateTime, default=utcnow_naive, onupdate=utcnow_naive)
 
 class Cooperative(Base):

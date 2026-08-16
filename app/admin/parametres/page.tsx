@@ -32,6 +32,8 @@ interface AdminSettingsData {
   maintenance_mode: boolean;
   support_phone: string;
   support_whatsapp: string;
+  support_email: string;
+  support_address: string;
   updated_at?: string | null;
   admins: AdminAgentSummary[];
 }
@@ -61,6 +63,8 @@ export default function AdminParametresPage() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [supportPhone, setSupportPhone] = useState("");
   const [supportWhatsapp, setSupportWhatsapp] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [supportAddress, setSupportAddress] = useState("");
   const [agentForm, setAgentForm] = useState(EMPTY_AGENT_FORM);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -87,6 +91,8 @@ export default function AdminParametresPage() {
       commissionHelp: "Valeur appliquée sur les ventes livrées avant crédit au fermier.",
       supportPhone: "Téléphone support",
       supportWhatsapp: "WhatsApp support",
+      supportEmail: "Email support",
+      supportAddress: "Adresse (footer public)",
       maintenanceTitle: "Mode maintenance",
       maintenanceHelp: "Bloque les nouvelles commandes pendant une intervention technique.",
       save: "Enregistrer les réglages",
@@ -123,6 +129,8 @@ export default function AdminParametresPage() {
       commissionHelp: "Bikurwa ku vyagurishijwe vyashikanywe imbere yo gushira amafaranga ku murimyi.",
       supportPhone: "Telefone y'ubufasha",
       supportWhatsapp: "WhatsApp y'ubufasha",
+      supportEmail: "Imeyili y'ubufasha",
+      supportAddress: "Aderesi (kuri footer rusangi)",
       maintenanceTitle: "Uburyo bwo gusanasana",
       maintenanceHelp: "Buhagarika ama komande mashasha mu gihe c'ikorwa rya tekinike.",
       save: "Bika amagenamiterere",
@@ -150,6 +158,8 @@ export default function AdminParametresPage() {
     setMaintenanceMode(Boolean(data.maintenance_mode));
     setSupportPhone(data.support_phone || "");
     setSupportWhatsapp(data.support_whatsapp || "");
+    setSupportEmail(data.support_email || "");
+    setSupportAddress(data.support_address || "");
   };
 
   const loadSettings = async () => {
@@ -191,6 +201,8 @@ export default function AdminParametresPage() {
           maintenance_mode: maintenanceMode,
           support_phone: supportPhone.trim(),
           support_whatsapp: supportWhatsapp.trim(),
+          support_email: supportEmail.trim(),
+          support_address: supportAddress.trim(),
         }),
       });
       applySettings(updated as AdminSettingsData);
@@ -278,9 +290,19 @@ export default function AdminParametresPage() {
                 <Input value={supportPhone} onChange={(event) => setSupportPhone(event.target.value)} />
               </div>
 
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">{copy.supportWhatsapp}</label>
                 <Input value={supportWhatsapp} onChange={(event) => setSupportWhatsapp(event.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">{copy.supportEmail}</label>
+                <Input type="email" value={supportEmail} onChange={(event) => setSupportEmail(event.target.value)} />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-foreground">{copy.supportAddress}</label>
+                <Input value={supportAddress} onChange={(event) => setSupportAddress(event.target.value)} />
               </div>
             </div>
 

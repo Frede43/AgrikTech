@@ -21,5 +21,7 @@ def get_public_platform_settings(db: Session = Depends(get_db)):
         "commission_rate": rate,
         "maintenance_mode": settings.maintenance_mode if settings else False,
         "support_phone": settings.support_phone if settings else config.DEFAULT_SUPPORT_PHONE,
-        "support_whatsapp": settings.support_whatsapp if settings else config.DEFAULT_SUPPORT_WHATSAPP
+        "support_whatsapp": settings.support_whatsapp if settings else config.DEFAULT_SUPPORT_WHATSAPP,
+        "support_email": (settings.support_email if settings else None) or config.DEFAULT_SUPPORT_EMAIL,
+        "support_address": (settings.support_address if settings else None) or config.DEFAULT_SUPPORT_ADDRESS,
     }

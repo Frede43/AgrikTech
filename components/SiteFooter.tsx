@@ -1,10 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Leaf, MapPin, Mail, Phone, Facebook, Twitter, Instagram, Linkedin, Globe } from "lucide-react";
-import { getLoginPath, getSignupPath } from "@/lib/api-config";
+import { apiFetch, getLoginPath, getSignupPath } from "@/lib/api-config";
 
 import { useLanguage } from "@/lib/LanguageContext";
+
+interface PlatformContact {
+    support_phone: string;
+    support_whatsapp: string;
+    support_email: string;
+    support_address: string;
+}
 
 export function SiteFooter() {
     const { lang, setLang, text } = useLanguage();
@@ -12,6 +20,25 @@ export function SiteFooter() {
     const obrPortalLabel = lang === "fr" ? "Portail OBR" : "Ikibanza c'OBR";
     const ministryPortalLabel = lang === "fr" ? "Portail Ministère de l'Agriculture" : "Ikibanza c'Ubuyobozi bw'Uburimyi";
     const switchLanguageLabel = lang === "fr" ? "Passer en kirundi" : "Subira mu gifaransa";
+
+    // Coordonnées de contact réellement modifiables par un admin (Paramètres
+    // > support_phone/whatsapp/email/address), plutôt que codées en dur ici.
+    // Repli sur les textes de traduction tant que l'appel n'a pas abouti.
+    const [contact, setContact] = useState<PlatformContact | null>(null);
+    useEffect(() => {
+        let active = true;
+        apiFetch("/platform/settings")
+            .then((data) => {
+                if (active) setContact(data as PlatformContact);
+            })
+            .catch(() => { /* Repli silencieux sur les valeurs statiques */ });
+        return () => {
+            active = false;
+        };
+    }, []);
+    const contactAddress = contact?.support_address || text.footerAddress;
+    const contactEmail = contact?.support_email || text.footerEmail;
+    const contactPhone = contact?.support_phone || "+25776000000";
 
     return (
         <footer className="bg-slate-950 text-slate-400 border-t border-white/5">
@@ -70,15 +97,15 @@ export function SiteFooter() {
                         <ul className="space-y-4 text-sm">
                             <li className="flex items-start gap-3">
                                 <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                                <span>{text.footerAddress}</span>
+                                <span>{contactAddress}</span>
                             </li>
                             <li className="flex items-center gap-3">
                                 <Mail className="w-4 h-4 text-primary shrink-0" />
-                                <a href={`mailto:${text.footerEmail}`} className="hover:text-white transition-colors">{text.footerEmail}</a>
+                                <a href={`mailto:${contactEmail}`} className="hover:text-white transition-colors">{contactEmail}</a>
                             </li>
                             <li className="flex items-center gap-3">
                                 <Phone className="w-4 h-4 text-primary shrink-0" />
-                                <a href="tel:+25776000000" className="hover:text-white transition-colors">+257 76 000 000</a>
+                                <a href={`tel:${contactPhone}`} className="hover:text-white transition-colors">{contactPhone}</a>
                             </li>
                         </ul>
                     </div>

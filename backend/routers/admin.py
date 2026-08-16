@@ -324,12 +324,14 @@ def get_admin_settings(request: Request, db: Session = Depends(get_db)):
             commission_rate=0.05,
             maintenance_mode=False,
             support_phone=config.DEFAULT_SUPPORT_PHONE,
-            support_whatsapp=config.DEFAULT_SUPPORT_WHATSAPP
+            support_whatsapp=config.DEFAULT_SUPPORT_WHATSAPP,
+            support_email=config.DEFAULT_SUPPORT_EMAIL,
+            support_address=config.DEFAULT_SUPPORT_ADDRESS,
         )
         db.add(settings)
         db.commit()
         db.refresh(settings)
-        
+
     admins = db.query(models.User).filter(models.User.role.in_(config.ADMIN_ROLE_VALUES)).all()
     admin_list = []
     for a in admins:
@@ -340,12 +342,14 @@ def get_admin_settings(request: Request, db: Session = Depends(get_db)):
             "province": a.province,
             "role": a.role
         })
-        
+
     return {
         "commission_rate": float(str(settings.commission_rate)),
         "maintenance_mode": settings.maintenance_mode,
         "support_phone": settings.support_phone,
         "support_whatsapp": settings.support_whatsapp,
+        "support_email": settings.support_email or config.DEFAULT_SUPPORT_EMAIL,
+        "support_address": settings.support_address or config.DEFAULT_SUPPORT_ADDRESS,
         "updated_at": settings.updated_at,
         "admins": admin_list
     }

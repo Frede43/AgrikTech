@@ -580,11 +580,15 @@ class AdminSettingsUpdate(BaseModel):
     maintenance_mode: Optional[bool] = None
     support_phone: Optional[str] = None
     support_whatsapp: Optional[str] = None
+    support_email: Optional[str] = None
+    support_address: Optional[str] = None
 
 class AdminSettingsResponse(BaseModel):
     commission_rate: float
     maintenance_mode: bool
     support_phone: str
     support_whatsapp: str
+    support_email: str
+    support_address: str
     updated_at: Optional[datetime] = None
     admins: List[dict] = []
