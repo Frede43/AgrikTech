@@ -90,7 +90,10 @@ def create_cooperative_product(coop_id: int, product: schemas.ProductCreate, req
     if user.cooperative_id != coop_id:
         raise HTTPException(status_code=403, detail="Vous n'êtes pas autorisé à vendre pour cette coopérative.")
     
-    db_product = models.Product(**product.model_dump(), cooperative_id=coop_id)
+    # exclude=cooperative_id : ProductCreate en porte déjà un (hérité de
+    # ProductBase, généralement None côté client), il ne faut pas le
+    # dupliquer avec celui, faisant autorité, de l'URL.
+    db_product = models.Product(**product.model_dump(exclude={"cooperative_id"}), cooperative_id=coop_id)
     db.add(db_product)
     db.commit()
     db.refresh(db_product)
