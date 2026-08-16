@@ -72,7 +72,7 @@ function LoginContent() {
         return (
             <div className="flex flex-col min-h-screen bg-background max-w-md mx-auto px-6 py-10">
                 <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-3">
+                    <Link href="/" className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
                             <Leaf className="w-6 h-6 text-primary-foreground" />
                         </div>
@@ -80,7 +80,7 @@ function LoginContent() {
                             <p className="font-bold text-base text-foreground leading-none">AgriConnect</p>
                             <p className="text-xs text-muted-foreground">Burundi</p>
                         </div>
-                    </div>
+                    </Link>
                     <button
                         onClick={() => setLang(lang === "fr" ? "ki" : "fr")}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
