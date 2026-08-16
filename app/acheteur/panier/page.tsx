@@ -206,12 +206,15 @@ export default function PanierPage() {
     replaceItems(nextItems);
   };
 
-  const delivery = items.length > 0 ? 5_000 : 0;
-  const commission = Math.round(totalPrice * 0.05);
-  const total = totalPrice + delivery + commission;
+  // Ni la livraison ni une "commission acheteur" ne sont facturées : le
+  // backend (POST /orders/) ne reçoit que les articles et calcule le total
+  // uniquement à partir du prix des produits (voir orders.py::create_order).
+  // La commission AgriConnect est déduite du côté fermier au paiement, pas
+  // ajoutée ici — l'afficher comme une ligne du panier acheteur induisait en
+  // erreur (montant affiché ≠ montant réellement demandé par mobile money).
+  const total = totalPrice;
   const availableSubtotal = validation?.available_total ?? totalPrice;
-  const availableCommission = Math.round(availableSubtotal * 0.05);
-  const availableCheckoutTotal = availableSubtotal + delivery + availableCommission;
+  const availableCheckoutTotal = availableSubtotal;
   const canCheckout = hydrated && isOnline && items.length > 0 && !validating && !validationError && validation?.valid !== false;
 
   if (!hydrated) {
@@ -375,8 +378,6 @@ export default function PanierPage() {
               <div className="space-y-3">
                 {[
                   { label: text.cartSubtotal, value: formatBIF(totalPrice) },
-                  { label: text.cartDelivery, value: formatBIF(delivery) },
-                  { label: text.cartCommission, value: formatBIF(commission) },
                   ...(validation && !validation.valid
                     ? [{ label: lang === "fr" ? "Ajustement live" : "Guhinyanyura ubu", value: formatBIF(validation.available_total - totalPrice), color: "text-amber-600 font-bold" }]
                     : []),

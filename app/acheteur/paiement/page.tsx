@@ -43,9 +43,12 @@ export default function PaiementPage() {
     }
   }, [user, address, phone]);
 
-  const delivery = items.length > 0 ? 5_000 : 0;
-  const commission = Math.round(totalPrice * 0.05);
-  const total = totalPrice + delivery + commission;
+  // Ni la livraison ni une "commission acheteur" ne sont facturées : le
+  // backend (POST /orders/) calcule le total uniquement à partir du prix des
+  // produits (orders.py::create_order), et c'est ce montant exact que le
+  // prompt mobile money du buyer va demander — l'afficher gonflé ici aurait
+  // fait annoncer un total différent de celui réellement débité.
+  const total = totalPrice;
 
   const handlePay = async () => {
     if (!address || !phone || !session || !isOnline) return;
@@ -230,7 +233,6 @@ export default function PaiementPage() {
           <div className="flex justify-between items-end pt-1">
             <div className="space-y-1">
               <span className="text-xs font-black text-foreground uppercase tracking-widest block">{text.payTotalToPay}</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest block opacity-70">Incl. livraison & taxes</span>
             </div>
             <span className="text-2xl font-black text-primary tracking-tighter leading-none">{formatBIF(total)}</span>
           </div>
