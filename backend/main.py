@@ -65,8 +65,11 @@ if config.E2E_TEST_MODE:
     from backend.routers import testing as testing_router
     app.include_router(testing_router.router)
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 def health_check():
+    # HEAD est explicitement supporté : c'est ce que le frontend utilise
+    # pour son ping de connectivité (lib/offline.ts), FastAPI ne l'ajoute
+    # pas automatiquement pour une route déclarée en GET seul.
     return {"status": "ok"}
 
 if not os.path.exists("static"):
