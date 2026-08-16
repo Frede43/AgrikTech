@@ -113,9 +113,10 @@ class Order(Base):
     
     product_id = Column(Integer, ForeignKey("products.id"))
     quantity = Column(Float)
-    total_price = Column(Numeric(12, 2)) # Prix TTC (Toutes Taxes Comprises)
-    vat_amount = Column(Numeric(12, 2), default=0.0) # Montant de la TVA collectée
-    subtotal_price = Column(Numeric(12, 2), default=0.0) # Prix HT (Hors Taxes)
+    total_price = Column(Numeric(12, 2)) # Prix TTC (Toutes Taxes Comprises), inclut delivery_fee
+    vat_amount = Column(Numeric(12, 2), default=0.0) # Montant de la TVA collectée (produits uniquement)
+    subtotal_price = Column(Numeric(12, 2), default=0.0) # Prix HT (Hors Taxes), produits uniquement
+    delivery_fee = Column(Numeric(12, 2), default=0.0) # Part de total_price versée au livreur (voir utils.compute_delivery_fee)
     invoice_number = Column(String, unique=True, nullable=True, index=True) # N° Facture OBR
     status = Column(String, default="PENDING") 
     

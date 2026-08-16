@@ -406,6 +406,7 @@ class Order(BaseModel):
     total_price: Decimal
     vat_amount: Decimal = Decimal("0.0")
     subtotal_price: Decimal = Decimal("0.0")
+    delivery_fee: Decimal = Decimal("0.0")
     invoice_number: Optional[str] = None
     status: str
     items: List[OrderItem] = []

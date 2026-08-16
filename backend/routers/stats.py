@@ -42,6 +42,9 @@ def get_public_stats(db: Session = Depends(get_db)):
         "standard_commission_rate": config.DEFAULT_COMMISSION_RATE,
         "promo_commission_rate": config.PROMO_COMMISSION_RATE,
         "promo_sales_threshold": config.PROMO_SALES_THRESHOLD,
+        "delivery_fee_same_province": config.LOGISTICS_FIXED_FEE_BUJUMBURA,
+        "delivery_fee_cross_province": config.LOGISTICS_FIXED_FEE_PROVINCE,
+        "delivery_price_per_km": config.LOGISTICS_PRICE_PER_KM,
     }
 
 @router.get("/agriculture")

@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from decimal import Decimal
+from typing import Optional
 from fastapi import HTTPException
 
 import backend.models as models
@@ -46,8 +47,12 @@ class PaymentService:
                 detail="La commande doit être livrée pour libérer les fonds.",
             )
 
-        total_ttc = order.total_price or Decimal("0")
-        subtotal_ht = order.subtotal_price or total_ttc
+        # total_price inclut delivery_fee (voir orders.py::create_order) —
+        # celui-ci revient au livreur (release_delivery_fee_to_driver), pas
+        # au fermier, donc on le retire avant de calculer le net fermier.
+        delivery_fee = order.delivery_fee or Decimal("0")
+        product_total_ttc = (order.total_price or Decimal("0")) - delivery_fee
+        subtotal_ht = order.subtotal_price or product_total_ttc
 
         prior_completed_sales = db.query(models.Order).filter(
             models.Order.farmer_id == order.farmer_id,
@@ -58,7 +63,7 @@ class PaymentService:
         commission_rate = config.PROMO_COMMISSION_RATE if is_promo else config.DEFAULT_COMMISSION_RATE
 
         commission_amount = subtotal_ht * commission_rate
-        net_to_farmer = total_ttc - commission_amount
+        net_to_farmer = product_total_ttc - commission_amount
 
         farmer = db.query(models.User).filter(models.User.id == order.farmer_id).first()
         if not farmer:
@@ -95,6 +100,34 @@ class PaymentService:
             "promo_applied": is_promo,
             "sale_number": prior_completed_sales + 1,
         }
+
+    @staticmethod
+    def release_delivery_fee_to_driver(db: Session, order: models.Order) -> Optional[Decimal]:
+        """
+        Verse au livreur la totalité du delivery_fee de la commande (aucune
+        commission plateforme prélevée dessus). Ne fait rien silencieusement
+        si aucun livreur n'est assigné ou si delivery_fee est nul — évite de
+        planter la livraison pour une commande créée avant cette fonctionnalité
+        (delivery_fee=0 par défaut, colonne ajoutée après coup en base).
+        """
+        delivery_fee = order.delivery_fee or Decimal("0")
+        if delivery_fee <= 0 or not order.driver_id:
+            return None
+
+        driver = db.query(models.User).filter(models.User.id == order.driver_id).first()
+        if not driver:
+            return None
+
+        driver.balance += delivery_fee  # type: ignore
+
+        db.add(models.TransactionLog(
+            user_id=order.driver_id,
+            order_id=order.id,
+            amount=delivery_fee,
+            action="DELIVERY_FEE_RELEASED",
+        ))
+
+        return delivery_fee
 
     @staticmethod
     def cancel_order_and_refund(

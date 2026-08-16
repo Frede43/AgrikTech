@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import secrets
 from typing import Optional, cast
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from math import asin, cos, radians, sin, sqrt
 
 import backend.models as models, backend.schemas as schemas, backend.config as config
@@ -190,6 +191,32 @@ def calculate_road_distance_km_sync(u1: Optional[models.User], u2: Optional[mode
     except:
         pass
     return None
+
+def compute_delivery_fee(buyer: Optional[models.User], farmer: Optional[models.User]) -> Decimal:
+    """
+    Frais de livraison facturé à l'acheteur, versé en intégralité au livreur
+    à la livraison (voir payment_service.release_delivery_fee_to_driver).
+
+    Repli sur un forfait par province (LOGISTICS_FIXED_FEE_BUJUMBURA si
+    acheteur et fermier sont dans la même province, sinon
+    LOGISTICS_FIXED_FEE_PROVINCE) car les coordonnées GPS sont facultatives
+    à l'inscription et souvent absentes — calculate_distance_km renvoie
+    silencieusement 0.0 dans ce cas, ce qui donnerait un forfait à 0 BIF si
+    on ne s'en protégeait pas explicitement. Quand les deux ont de vraies
+    coordonnées, le tarif kilométrique (LOGISTICS_PRICE_PER_KM) prend le
+    relai s'il dépasse le forfait de base.
+    """
+    same_province = bool(
+        buyer and farmer and buyer.province and farmer.province
+        and normalize_market_province(cast(str, buyer.province)) == normalize_market_province(cast(str, farmer.province))
+    )
+    base_fee = config.LOGISTICS_FIXED_FEE_BUJUMBURA if same_province else config.LOGISTICS_FIXED_FEE_PROVINCE
+
+    distance_km = calculate_distance_km(buyer, farmer)
+    if distance_km > 0:
+        distance_fee = Decimal(str(round(distance_km, 2))) * config.LOGISTICS_PRICE_PER_KM
+        return max(base_fee, distance_fee)
+    return base_fee
 
 def format_distance_label(km: float) -> str:
     if km < 1: return f"{int(km * 1000)}m"

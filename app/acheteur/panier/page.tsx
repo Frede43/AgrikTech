@@ -30,12 +30,19 @@ interface ValidationItem {
   line_total: number;
 }
 
+interface DeliveryFeeEntry {
+  farmer_id: number;
+  delivery_fee: number;
+}
+
 interface CartValidationResult {
   valid: boolean;
   items: ValidationItem[];
   subtotal: number;
   available_total: number;
   issues: string[];
+  delivery_fees: DeliveryFeeEntry[];
+  total_delivery_fee: number;
 }
 
 interface StoredCartValidation {
@@ -206,15 +213,18 @@ export default function PanierPage() {
     replaceItems(nextItems);
   };
 
-  // Ni la livraison ni une "commission acheteur" ne sont facturées : le
-  // backend (POST /orders/) ne reçoit que les articles et calcule le total
-  // uniquement à partir du prix des produits (voir orders.py::create_order).
-  // La commission AgriConnect est déduite du côté fermier au paiement, pas
-  // ajoutée ici — l'afficher comme une ligne du panier acheteur induisait en
-  // erreur (montant affiché ≠ montant réellement demandé par mobile money).
-  const total = totalPrice;
+  // Une "commission acheteur" n'a jamais été facturée ici (elle est déduite
+  // du côté fermier au paiement, voir payment_service.py) et ne doit pas
+  // l'être. La livraison, elle, EST réellement facturée par le backend
+  // depuis peu (orders.py::create_order via utils.compute_delivery_fee) —
+  // on affiche donc le montant exact renvoyé par /cart/validate, calculé
+  // par la même fonction, plutôt qu'un forfait deviné côté client qui
+  // risquerait de ne plus correspondre à ce que le paiement mobile money
+  // demandera réellement.
+  const deliveryFee = validation?.total_delivery_fee ?? 0;
+  const total = totalPrice + deliveryFee;
   const availableSubtotal = validation?.available_total ?? totalPrice;
-  const availableCheckoutTotal = availableSubtotal;
+  const availableCheckoutTotal = availableSubtotal + deliveryFee;
   const canCheckout = hydrated && isOnline && items.length > 0 && !validating && !validationError && validation?.valid !== false;
 
   if (!hydrated) {
@@ -378,6 +388,9 @@ export default function PanierPage() {
               <div className="space-y-3">
                 {[
                   { label: text.cartSubtotal, value: formatBIF(totalPrice) },
+                  ...(items.length > 0
+                    ? [{ label: text.cartDelivery, value: validation ? formatBIF(deliveryFee) : (lang === "fr" ? "Calcul en cours..." : "Biriko biraharurwa...") }]
+                    : []),
                   ...(validation && !validation.valid
                     ? [{ label: lang === "fr" ? "Ajustement live" : "Guhinyanyura ubu", value: formatBIF(validation.available_total - totalPrice), color: "text-amber-600 font-bold" }]
                     : []),

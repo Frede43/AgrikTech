@@ -77,6 +77,14 @@ def create_order(order_payload: schemas.OrderCreate, request: Request, db: Sessi
             "price_at_order": product.price_per_kg
         })
 
+    # 1bis. Frais de livraison — versé en intégralité au livreur à la
+    # livraison (payment_service.release_delivery_fee_to_driver), ajouté au
+    # total facturé mais PAS à subtotal_price/vat_amount (produit-uniquement,
+    # base de la commission fermier — voir payment_service.release_funds_to_farmer).
+    seller = db.query(models.User).filter(models.User.id == farmer_id).first() if farmer_id else None
+    delivery_fee = utils.compute_delivery_fee(user, seller)
+    total_ttc += delivery_fee
+
     # 2. Créer l'entité Order
     db_order = models.Order(
         buyer_id=user.id,
@@ -85,6 +93,7 @@ def create_order(order_payload: schemas.OrderCreate, request: Request, db: Sessi
         total_price=total_ttc,
         vat_amount=total_vat,
         subtotal_price=total_ht,
+        delivery_fee=delivery_fee,
         invoice_number=f"FAC-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}",
         status="PENDING_PAYMENT",
         pickup_qr_token=f"QR-{uuid.uuid4().hex[:6].upper()}",
@@ -395,6 +404,7 @@ def deliver_order(order_id: int, otp_code: str, db: Session = Depends(get_db)):
 
     order.status = "COMPLETED" # type: ignore
     payment_service.release_funds_to_farmer(db, order)
+    payment_service.release_delivery_fee_to_driver(db, order)
     db.commit()
     return {"message": "Livré."}
 

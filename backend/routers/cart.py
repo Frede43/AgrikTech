@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional, Union, cast
 from pydantic import BaseModel
 from decimal import Decimal
 
 import backend.models as models
+import backend.utils as utils
 from backend.database import get_db
 
 router = APIRouter(
@@ -21,12 +22,16 @@ class CartValidateRequest(BaseModel):
     items: List[CartItemInput]
 
 @router.post("/validate")
-def validate_cart(req: CartValidateRequest, db: Session = Depends(get_db)):
+def validate_cart(req: CartValidateRequest, request: Request, db: Session = Depends(get_db)):
     valid = True
     result_items = []
     subtotal = 0.0
     available_total = 0.0
     global_issues = []
+    # Acheteur optionnel : le panier peut être consulté avant connexion, mais
+    # sans acheteur identifié on ne peut pas calculer de vraie distance
+    # (compute_delivery_fee retombe alors sur le forfait "provinces différentes").
+    buyer = utils.get_authenticated_user(request, db)
 
     for item in req.items:
         # Tente de parser l'id s'il est au format "P001" (mock) ou entier
@@ -100,10 +105,27 @@ def validate_cart(req: CartValidateRequest, db: Session = Depends(get_db)):
             "farmer_id": product.farmer_id
         })
 
+    # Frais de livraison réel par vendeur (même calcul, mêmes constantes que
+    # orders.py::create_order — un panier scindé en une commande par fermier
+    # à la validation paiera exactement ce qui est annoncé ici).
+    farmer_ids = sorted({
+        it["farmer_id"] for it in result_items
+        if it["farmer_id"] and it["status"] != "unavailable"
+    })
+    delivery_fees = []
+    total_delivery_fee = 0.0
+    for fid in farmer_ids:
+        seller = db.query(models.User).filter(models.User.id == fid).first()
+        fee = float(utils.compute_delivery_fee(buyer, seller))
+        delivery_fees.append({"farmer_id": fid, "delivery_fee": fee})
+        total_delivery_fee += fee
+
     return {
         "valid": valid,
         "items": result_items,
         "subtotal": subtotal,
+        "delivery_fees": delivery_fees,
+        "total_delivery_fee": total_delivery_fee,
         "available_total": available_total,
         "issues": global_issues
     }

@@ -5,18 +5,23 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useLanguage } from "@/lib/LanguageContext";
 import { apiFetch } from "@/lib/api-config";
+import { formatBIF } from "@/lib/currency";
 import { CheckCircle2, Truck, WalletCards, ShieldCheck, Sparkles } from "lucide-react";
 
 interface CommissionInfo {
     standard_commission_rate: number;
     promo_commission_rate: number;
     promo_sales_threshold: number;
+    delivery_fee_same_province: number;
+    delivery_fee_cross_province: number;
 }
 
 const FALLBACK_COMMISSION: CommissionInfo = {
     standard_commission_rate: 0.05,
     promo_commission_rate: 0.02,
     promo_sales_threshold: 20,
+    delivery_fee_same_province: 2000,
+    delivery_fee_cross_province: 5000,
 };
 
 export default function FeesPage() {
@@ -34,6 +39,8 @@ export default function FeesPage() {
                         standard_commission_rate: payload.standard_commission_rate,
                         promo_commission_rate: payload.promo_commission_rate ?? FALLBACK_COMMISSION.promo_commission_rate,
                         promo_sales_threshold: payload.promo_sales_threshold ?? FALLBACK_COMMISSION.promo_sales_threshold,
+                        delivery_fee_same_province: payload.delivery_fee_same_province ?? FALLBACK_COMMISSION.delivery_fee_same_province,
+                        delivery_fee_cross_province: payload.delivery_fee_cross_province ?? FALLBACK_COMMISSION.delivery_fee_cross_province,
                     });
                 }
             })
@@ -133,9 +140,15 @@ export default function FeesPage() {
                             <p className="text-muted-foreground leading-relaxed">
                                 {text.feesDeliveryBody}
                             </p>
-                            <div className="mt-6 pt-6 border-t border-border flex justify-between items-center text-sm">
-                                <span className="font-medium text-foreground">{text.feesBaseDelivery}</span>
-                                <span className="text-primary font-bold">{text.feesBaseDeliveryPrice}</span>
+                            <div className="mt-6 pt-6 border-t border-border space-y-2 text-sm">
+                                <div className="flex justify-between items-center">
+                                    <span className="font-medium text-foreground">{text.feesBaseDelivery}</span>
+                                    <span className="text-primary font-bold">{formatBIF(commission.delivery_fee_same_province)}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="font-medium text-foreground">{text.feesCrossProvinceDelivery}</span>
+                                    <span className="text-primary font-bold">{formatBIF(commission.delivery_fee_cross_province)}</span>
+                                </div>
                             </div>
                         </div>
 

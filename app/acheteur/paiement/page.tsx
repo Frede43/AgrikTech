@@ -34,6 +34,7 @@ export default function PaiementPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
 
   // Pré-remplissage avec les données du profil
   useEffect(() => {
@@ -43,12 +44,33 @@ export default function PaiementPage() {
     }
   }, [user, address, phone]);
 
-  // Ni la livraison ni une "commission acheteur" ne sont facturées : le
-  // backend (POST /orders/) calcule le total uniquement à partir du prix des
-  // produits (orders.py::create_order), et c'est ce montant exact que le
-  // prompt mobile money du buyer va demander — l'afficher gonflé ici aurait
-  // fait annoncer un total différent de celui réellement débité.
-  const total = totalPrice;
+  // La "commission acheteur" n'est jamais facturée ici (déduite côté fermier,
+  // voir payment_service.py). La livraison, elle, EST réellement facturée par
+  // POST /orders/ (orders.py::create_order via utils.compute_delivery_fee) —
+  // on récupère donc le montant exact via /cart/validate (même calcul) plutôt
+  // que de deviner, pour ne jamais annoncer un total différent de celui que
+  // le prompt mobile money du buyer va effectivement demander.
+  useEffect(() => {
+    if (!hydrated || items.length === 0) return;
+    let active = true;
+    apiFetch("/cart/validate", {
+      method: "POST",
+      body: JSON.stringify({
+        items: items.map((item) => ({ productId: item.productId, quantity: item.quantity, price: item.price })),
+      }),
+    })
+      .then((data) => {
+        if (active) setDeliveryFee((data as { total_delivery_fee?: number }).total_delivery_fee ?? 0);
+      })
+      .catch(() => {
+        if (active) setDeliveryFee(0);
+      });
+    return () => {
+      active = false;
+    };
+  }, [hydrated, items]);
+
+  const total = totalPrice + (deliveryFee ?? 0);
 
   const handlePay = async () => {
     if (!address || !phone || !session || !isOnline) return;
@@ -230,6 +252,13 @@ export default function PaiementPage() {
             ))}
           </div>
           <Separator className="bg-border/60" />
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-muted-foreground font-semibold">{text.cartDelivery}</span>
+            <span className="text-foreground font-black">
+              {deliveryFee === null ? (lang === "fr" ? "Calcul en cours..." : "Biriko biraharurwa...") : formatBIF(deliveryFee)}
+            </span>
+          </div>
+          <Separator className="bg-border/60" />
           <div className="flex justify-between items-end pt-1">
             <div className="space-y-1">
               <span className="text-xs font-black text-foreground uppercase tracking-widest block">{text.payTotalToPay}</span>
@@ -242,7 +271,7 @@ export default function PaiementPage() {
         <div className="space-y-5 pt-2">
           <Button
             onClick={handlePay}
-            disabled={!address || !phone || !session || !isOnline || loading || items.length === 0}
+            disabled={!address || !phone || !session || !isOnline || loading || items.length === 0 || deliveryFee === null}
             className="w-full h-16 bg-primary text-white hover:bg-primary/90 rounded-2xl font-black text-base shadow-xl gap-3 transition-transform hover:scale-[1.01] active:scale-[0.98] disabled:opacity-70"
           >
             {loading ? (
