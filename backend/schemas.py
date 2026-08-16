@@ -397,7 +397,11 @@ class OrderCreate(BaseModel):
 class Order(BaseModel):
     id: int
     buyer_id: int
-    farmer_id: int
+    # nullable en base (commande rattachée à une coopérative plutôt qu'à un
+    # fermier individuel) : l'exiger ici faisait planter la réponse (500) dès
+    # qu'un acheteur commandait un produit de coopérative.
+    farmer_id: Optional[int] = None
+    cooperative_id: Optional[int] = None
     driver_id: Optional[int] = None
     total_price: Decimal
     vat_amount: Decimal = Decimal("0.0")

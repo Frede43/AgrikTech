@@ -90,10 +90,20 @@ def create_cooperative_product(coop_id: int, product: schemas.ProductCreate, req
     if user.cooperative_id != coop_id:
         raise HTTPException(status_code=403, detail="Vous n'êtes pas autorisé à vendre pour cette coopérative.")
     
-    # exclude=cooperative_id : ProductCreate en porte déjà un (hérité de
-    # ProductBase, généralement None côté client), il ne faut pas le
-    # dupliquer avec celui, faisant autorité, de l'URL.
-    db_product = models.Product(**product.model_dump(exclude={"cooperative_id"}), cooperative_id=coop_id)
+    # exclude=cooperative_id/farmer_id : ProductCreate en porte déjà (hérités
+    # de ProductBase, généralement None côté client), il ne faut pas les
+    # dupliquer avec les valeurs, faisant autorité, calculées ici.
+    #
+    # farmer_id = le membre qui publie : c'est LUI qui reçoit l'argent à la
+    # livraison (release_funds_to_farmer crédite order.farmer_id — il n'existe
+    # aucun solde propre à une Cooperative). cooperative_id reste renseigné
+    # pour l'affichage : Product.seller_name priorise le nom de la coopérative
+    # dès que cooperative_id est défini, quel que soit farmer_id.
+    db_product = models.Product(
+        **product.model_dump(exclude={"cooperative_id", "farmer_id"}),
+        cooperative_id=coop_id,
+        farmer_id=user.id,
+    )
     db.add(db_product)
     db.commit()
     db.refresh(db_product)
