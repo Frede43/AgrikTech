@@ -32,11 +32,11 @@ export default function AdminCooperativesPage() {
     }
   };
 
-  const handleVerify = async (id: number) => {
+  const handleVerify = async (id: number, currentlyVerified: boolean) => {
     setVerifyingId(id);
     try {
-      // Endpoint created in previous session: POST /admin/cooperatives/{coop_id}/verify
-      await apiFetch(`/admin/cooperatives/${id}/verify`, { method: "POST" });
+      const targetStatus = currentlyVerified ? "unverified" : "verified";
+      await apiFetch(`/admin/cooperatives/${id}/verify?status=${targetStatus}`, { method: "POST" });
       await loadCooperatives();
     } catch (err) {
       console.error(err);
@@ -124,8 +124,8 @@ export default function AdminCooperativesPage() {
                         </Badge>
                       </div>
                       
-                      <Button 
-                        onClick={() => handleVerify(c.id)}
+                      <Button
+                        onClick={() => handleVerify(c.id, c.is_verified)}
                         disabled={verifyingId === c.id}
                         variant={c.is_verified ? "outline" : "default"}
                         className={`w-full rounded-xl gap-2 font-bold ${!c.is_verified ? 'bg-sidebar-primary' : 'border-red-500/20 text-red-500 hover:bg-red-500/5'}`}
