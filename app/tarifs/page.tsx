@@ -1,12 +1,55 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useLanguage } from "@/lib/LanguageContext";
-import { CheckCircle2, Truck, WalletCards, ShieldCheck } from "lucide-react";
+import { apiFetch } from "@/lib/api-config";
+import { CheckCircle2, Truck, WalletCards, ShieldCheck, Sparkles } from "lucide-react";
+
+interface CommissionInfo {
+    standard_commission_rate: number;
+    promo_commission_rate: number;
+    promo_sales_threshold: number;
+}
+
+const FALLBACK_COMMISSION: CommissionInfo = {
+    standard_commission_rate: 0.05,
+    promo_commission_rate: 0.02,
+    promo_sales_threshold: 20,
+};
 
 export default function FeesPage() {
     const { text } = useLanguage();
+    const [commission, setCommission] = useState<CommissionInfo>(FALLBACK_COMMISSION);
+
+    useEffect(() => {
+        let active = true;
+        apiFetch("/stats/public")
+            .then((data) => {
+                if (!active) return;
+                const payload = data as Partial<CommissionInfo>;
+                if (typeof payload.standard_commission_rate === "number") {
+                    setCommission({
+                        standard_commission_rate: payload.standard_commission_rate,
+                        promo_commission_rate: payload.promo_commission_rate ?? FALLBACK_COMMISSION.promo_commission_rate,
+                        promo_sales_threshold: payload.promo_sales_threshold ?? FALLBACK_COMMISSION.promo_sales_threshold,
+                    });
+                }
+            })
+            .catch(() => { /* Repli silencieux sur les valeurs par défaut */ });
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    const standardRateLabel = `${(commission.standard_commission_rate * 100).toFixed(0)}%`;
+    const promoRateLabel = `${(commission.promo_commission_rate * 100).toFixed(0)}%`;
+    const commissionBody = text.feesCommissionBody.replace("{standardRate}", standardRateLabel);
+    const promoBody = text.feesPromoBody
+        .replace("{promoRate}", promoRateLabel)
+        .replace("{promoThreshold}", String(commission.promo_sales_threshold))
+        .replace("{standardRate}", standardRateLabel);
 
     return (
         <div className="min-h-screen bg-background">
@@ -35,7 +78,7 @@ export default function FeesPage() {
                             <div>
                                 <h2 className="text-3xl font-bold mb-6">{text.feesCommission}</h2>
                                 <div className="flex items-baseline gap-2 mb-8">
-                                    <span className="text-6xl font-black text-primary">5%</span>
+                                    <span className="text-6xl font-black text-primary">{standardRateLabel}</span>
                                     <span className="text-slate-400">{text.feesPerSale}</span>
                                 </div>
                                 <ul className="space-y-4">
@@ -54,12 +97,30 @@ export default function FeesPage() {
                             </div>
                             <div className="p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm">
                                 <p className="text-slate-300 leading-relaxed mb-6">
-                                    {text.feesCommissionBody}
+                                    {commissionBody}
                                 </p>
                                 <div className="flex items-center gap-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
                                     <ShieldCheck className="w-6 h-6 text-primary" />
                                     <span className="text-sm font-medium">{text.feesFundsGuaranteed}</span>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Promo onboarding rate */}
+                    <div className="relative p-8 md:p-10 rounded-[2.5rem] bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 overflow-hidden">
+                        <div className="flex flex-col md:flex-row md:items-center gap-6">
+                            <div className="w-14 h-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+                                <Sparkles className="w-7 h-7" />
+                            </div>
+                            <div>
+                                <div className="flex items-baseline gap-3 mb-2 flex-wrap">
+                                    <h3 className="text-2xl font-bold text-foreground">{text.feesPromoTitle}</h3>
+                                    <span className="text-3xl font-black text-primary">{promoRateLabel}</span>
+                                </div>
+                                <p className="text-muted-foreground leading-relaxed">
+                                    {promoBody}
+                                </p>
                             </div>
                         </div>
                     </div>

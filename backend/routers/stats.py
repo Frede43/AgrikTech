@@ -38,7 +38,10 @@ def get_public_stats(db: Session = Depends(get_db)):
     
     return {
         "farmer_count": farmer_count,
-        "province_count": province_count
+        "province_count": province_count,
+        "standard_commission_rate": config.DEFAULT_COMMISSION_RATE,
+        "promo_commission_rate": config.PROMO_COMMISSION_RATE,
+        "promo_sales_threshold": config.PROMO_SALES_THRESHOLD,
     }
 
 @router.get("/agriculture")
