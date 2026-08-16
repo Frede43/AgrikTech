@@ -51,7 +51,7 @@ export function MinistereLayout({ children, title, subtitle }: MinistereLayoutPr
             <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border">
               <SheetTitle className="sr-only">{copy.navTitle}</SheetTitle>
               <SheetDescription className="sr-only">{copy.navDescription}</SheetDescription>
-              <MinistereSidebar />
+              <MinistereSidebar mobile />
             </SheetContent>
           </Sheet>
 

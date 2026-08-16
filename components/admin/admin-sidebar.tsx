@@ -111,7 +111,7 @@ export function AdminSidebar({ mobile = false }: AdminSidebarProps) {
   return (
     <aside className={cn(
       "flex flex-col w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
-      mobile ? "flex" : "hidden lg:flex lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto",
+      mobile ? "h-full overflow-y-auto" : "hidden lg:flex lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto",
     )}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">

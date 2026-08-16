@@ -54,7 +54,7 @@ export function LogisticsLayout({ children, title, subtitle }: LogisticsLayoutPr
             <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border">
               <SheetTitle className="sr-only">{copy.navTitle}</SheetTitle>
               <SheetDescription className="sr-only">{copy.navDescription}</SheetDescription>
-              <MobileSidebar />
+              <MobileSidebar mobile />
             </SheetContent>
           </Sheet>
 

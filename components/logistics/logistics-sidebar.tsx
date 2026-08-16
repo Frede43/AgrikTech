@@ -21,7 +21,11 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useRequiredSession } from "@/lib/session";
 import { formatUserLocation, getUserInitials, useSessionUserProfile } from "@/lib/user-profile";
 
-export function LogisticsSidebar() {
+interface LogisticsSidebarProps {
+  mobile?: boolean;
+}
+
+export function LogisticsSidebar({ mobile = false }: LogisticsSidebarProps) {
   const pathname = usePathname();
   const { lang } = useLanguage();
   const { session, ready } = useRequiredSession("logistique");
@@ -74,7 +78,10 @@ export function LogisticsSidebar() {
   const collectedCount = orders.filter((order) => ["PICKED_UP", "COLLECTED"].includes(order.status.toUpperCase())).length;
 
   return (
-    <aside className="hidden lg:flex lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto flex-col w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+    <aside className={cn(
+      "flex-col w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
+      mobile ? "flex h-full overflow-y-auto" : "hidden lg:flex lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto",
+    )}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
         <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center">
