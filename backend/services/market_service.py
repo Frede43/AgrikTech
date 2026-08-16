@@ -19,12 +19,14 @@ class MarketService:
         
         normalized_scope_province = utils.normalize_market_province(province)
         
-        # 1. Récupérer les produits actifs et disponibles
+        # 1. Récupérer les produits actifs et disponibles (les plus récents
+        # d'abord, pour que la photo retenue par groupe produit/unité soit
+        # celle de l'annonce la plus fraîche).
         query = db.query(models.Product).filter(
             models.Product.quantity_kg > 0,
             models.Product.is_active == True
         )
-        active_products = query.all()
+        active_products = query.order_by(models.Product.harvested_at.desc()).all()
         
         # 2. Récupérer les prix historiques pour calculer les tendances
         past_orders = (
@@ -64,7 +66,10 @@ class MarketService:
                     "unit": p.unit or "kg",
                     "price_sum": Decimal("0"),
                     "count": 0,
-                    "provinces": set()
+                    "provinces": set(),
+                    # Photo de l'annonce active la plus récente pour ce
+                    # produit (active_products est trié par created_at desc).
+                    "image_url": p.image_url,
                 }
             
             market_data[key]["price_sum"] += p.price_per_kg or Decimal("0")
@@ -93,6 +98,7 @@ class MarketService:
                 "unit": data["unit"],
                 "provinces_count": len(data["provinces"]),
                 "trend": trend,
+                "image_url": data.get("image_url"),
             })
             
         return results

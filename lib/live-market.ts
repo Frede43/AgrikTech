@@ -16,6 +16,7 @@ export interface LivePrice {
   product: string;
   price: number;
   unit: string;
+  image_url?: string | null;
   market_scope?: LivePriceMarketScope;
   market_scope_label?: string;
   trend: "up" | "down" | "stable";

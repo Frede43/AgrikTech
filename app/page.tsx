@@ -38,7 +38,7 @@ import {
   useLivePrices,
 } from "@/lib/live-market";
 import { formatBIF } from "@/lib/currency";
-import { apiFetch, getLoginPath, getSignupPath } from "@/lib/api-config";
+import { apiFetch, buildImageUrl, getLoginPath, getSignupPath } from "@/lib/api-config";
 import { cn } from "@/lib/utils";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -193,17 +193,14 @@ export default function LandingPage() {
       heroMetricSignals: "Ibimenyetso",
       heroMetricListings: "Amatangazo ariho",
     };
-  const fallbackTestimonials: LandingTestimonial[] = [
-    { id: "fallback-1", quote: text.testimonial1, author: text.testimonial1Name, rating: 5 },
-    { id: "fallback-2", quote: text.testimonial2, author: text.testimonial2Name, rating: 5 },
-  ];
-  const dynamicTestimonials = testimonialRecords
+  // Uniquement des témoignages réels, validés par un admin — aucun texte de
+  // repli : une plateforme sans témoignage n'en affiche simplement aucun.
+  const testimonials = testimonialRecords
     .map((item) => normalizeLandingTestimonial(item, lang))
     .filter((item): item is LandingTestimonial => item !== null);
-  const testimonials = dynamicTestimonials.length > 0 ? dynamicTestimonials : fallbackTestimonials;
   const activeHeroSlide = heroSlides[Math.min(slide, heroSlides.length - 1)] ?? heroSlides[0];
   const activeMarket = activeHeroSlide?.market;
-  const activeTestimonial = testimonials[slide % testimonials.length] ?? testimonials[0];
+  const activeTestimonial = testimonials.length > 0 ? testimonials[slide % testimonials.length] : null;
   const heroInsightTitle = activeMarket
     ? activeMarket.trend === "up"
       ? copy.heroInsightUp
@@ -276,6 +273,24 @@ export default function LandingPage() {
             className="object-cover"
             priority
           />
+          {/* Photos réelles des produits en vitrine, en fondu enchaîné au fil
+              du carrousel. Repli sur l'image générique ci-dessus tant qu'un
+              slide n'a pas de photo (ex. fallback hors ligne). */}
+          {heroSlides.map((s, i) => {
+            const photo = buildImageUrl(s.market?.image_url);
+            if (!photo) return null;
+            return (
+              <img
+                key={`${s.label}-${i}`}
+                src={photo}
+                alt={s.label}
+                className={cn(
+                  "absolute inset-0 h-full w-full object-cover transition-opacity duration-1000",
+                  i === slide ? "opacity-100" : "opacity-0"
+                )}
+              />
+            );
+          })}
           <div className="absolute inset-0 bg-primary/75" />
         </div>
 
@@ -633,6 +648,9 @@ export default function LandingPage() {
       </section>
 
       {/* ── TESTIMONIALS ───────────────────────────────────────── */}
+      {/* Section masquée tant qu'aucun témoignage réel n'est validé : pas de
+          repli statique, tout est dynamique. */}
+      {testimonials.length > 0 && (
       <section className="bg-primary">
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-16 space-y-8">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -694,6 +712,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      )}
 
       <SiteFooter />
     </div>
