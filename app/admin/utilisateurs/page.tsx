@@ -31,6 +31,8 @@ import {
   ShoppingBasket,
   Truck,
   ShieldCheck,
+  Landmark,
+  Building2,
   CheckCircle2,
   Ban,
   Star,
@@ -72,7 +74,7 @@ interface UserForm {
   role: EditableRole;
 }
 
-const EDITABLE_ROLES: EditableRole[] = ["fermier", "acheteur", "logistique"];
+const EDITABLE_ROLES: EditableRole[] = ["fermier", "acheteur", "logistique", "obr", "ministere_agriculture"];
 
 const EMPTY_USER_FORM: UserForm = {
   name: "",
@@ -86,6 +88,8 @@ const roleStyles: Record<CanonicalRole, { icon: ReactNode; color: string }> = {
   acheteur: { icon: <ShoppingBasket className="w-3 h-3" />, color: "bg-accent/30 text-accent-foreground border-accent/30" },
   logistique: { icon: <Truck className="w-3 h-3" />, color: "bg-muted text-muted-foreground border-border" },
   admin: { icon: <ShieldCheck className="w-3 h-3" />, color: "bg-destructive/10 text-destructive border-destructive/20" },
+  obr: { icon: <Landmark className="w-3 h-3" />, color: "bg-blue-500/10 text-blue-700 border-blue-500/20" },
+  ministere_agriculture: { icon: <Building2 className="w-3 h-3" />, color: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" },
 };
 
 const statusStyles: Record<UserStatus, { color: string; icon: ReactNode }> = {
@@ -279,6 +283,8 @@ export default function AdminUtilisateursPage() {
     acheteur: { ...roleStyles.acheteur, label: getRoleLabel("acheteur", lang) },
     logistique: { ...roleStyles.logistique, label: getRoleLabel("logistique", lang) },
     admin: { ...roleStyles.admin, label: getRoleLabel("admin", lang) },
+    obr: { ...roleStyles.obr, label: getRoleLabel("obr", lang) },
+    ministere_agriculture: { ...roleStyles.ministere_agriculture, label: getRoleLabel("ministere_agriculture", lang) },
   };
   const statusConfig: Record<UserStatus, { label: string; color: string; icon: ReactNode }> = {
     active: { ...statusStyles.active, label: copy.active },
@@ -436,6 +442,8 @@ export default function AdminUtilisateursPage() {
     active: users.filter(u => u.status === "active").length,
     suspended: users.filter(u => u.status === "suspended").length,
     admin: users.filter(u => u.normalizedRole === "admin").length,
+    obr: users.filter(u => u.normalizedRole === "obr").length,
+    ministere_agriculture: users.filter(u => u.normalizedRole === "ministere_agriculture").length,
   };
 
   return (
@@ -444,8 +452,8 @@ export default function AdminUtilisateursPage() {
       subtitle={copy.subtitle}
     >
       {/* Role summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {(["all", "fermier", "acheteur", "logistique"] as RoleFilter[]).map((role) => {
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {(["all", "fermier", "acheteur", "logistique", "obr", "ministere_agriculture"] as RoleFilter[]).map((role) => {
           const isAll = role === "all";
           const cfg = !isAll ? roleConfig[role] : null;
           const count = isAll ? users.length : (counts as any)[role];

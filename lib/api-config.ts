@@ -9,9 +9,11 @@ const ROLE_ALIASES = {
     logistique: "logistique",
     driver: "logistique",
     admin: "admin",
+    obr: "obr",
+    ministere_agriculture: "ministere_agriculture",
 } as const;
 
-export type CanonicalRole = "acheteur" | "fermier" | "logistique" | "admin";
+export type CanonicalRole = "acheteur" | "fermier" | "logistique" | "admin" | "obr" | "ministere_agriculture";
 const SESSION_SNAPSHOT_STORAGE_KEY = "agriconnect_session_snapshot"; 
 const SESSION_SNAPSHOT_VERSION = 1;
 
@@ -177,6 +179,10 @@ export function getRoleLabel(role?: string | null, lang: "fr" | "ki" = "fr") {
             return lang === "ki" ? "Umushikiriza" : "Livreur";
         case "admin":
             return "Admin";
+        case "obr":
+            return "OBR";
+        case "ministere_agriculture":
+            return lang === "ki" ? "Ubuyobozi bw'Uburimyi" : "Ministère de l'Agriculture";
         case "acheteur":
         default:
             return lang === "ki" ? "Umuguzi" : "Acheteur";
@@ -193,6 +199,10 @@ export function getRoleHomePath(role?: string | null) {
             return "/logistique";
         case "admin":
             return "/admin";
+        case "obr":
+            return "/obr";
+        case "ministere_agriculture":
+            return "/ministere-agriculture";
         default:
             return "/";
     }

@@ -28,6 +28,9 @@ function LoginContent() {
     const requestedRole = normalizeRole(searchParams.get("role"));
     const role = requestedRole || "acheteur";
     const isAdminRole = role === "admin";
+    // admin / obr / ministere_agriculture : comptes créés uniquement par un
+    // administrateur, jamais via l'inscription publique.
+    const isRestrictedRole = isAdminRole || role === "obr" || role === "ministere_agriculture";
     const initialPhone = (searchParams.get("phone") || "").replace(/^\+?257/, "");
 
     const { lang, setLang, text } = useLanguage();
@@ -257,7 +260,9 @@ function LoginContent() {
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             {isAdminRole
                                 ? text.adminSub
-                                : text.loginSubtitle}
+                                : isRestrictedRole
+                                    ? text.restrictedRoleSub
+                                    : text.loginSubtitle}
                         </p>
                     </div>
 
@@ -290,9 +295,9 @@ function LoginContent() {
                         </Button>
                         {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-                        {isAdminRole ? (
+                        {isRestrictedRole ? (
                             <p className="text-sm text-center text-muted-foreground">
-                                {text.authAdminOnly}
+                                {isAdminRole ? text.authAdminOnly : text.authRestrictedOnly}
                             </p>
                         ) : (
                             <p className="text-sm text-center text-muted-foreground">

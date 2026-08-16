@@ -34,7 +34,7 @@ def admin_create_user(payload: schemas.UserCreate, request: Request, db: Session
         raise HTTPException(status_code=403, detail="Accès non autorisé.")
         
     from backend.services.user_service import persist_user
-    db_user = persist_user(payload, db)
+    db_user = persist_user(payload, db, is_admin_context=True)
     return db_user
 
 @router.delete("/{user_id}", status_code=204)

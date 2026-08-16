@@ -47,6 +47,8 @@ SAISONS = {
 }
 
 # Roles
+# obr / ministere_agriculture : comptes gouvernementaux en lecture, créés par
+# un admin (pas d'auto-inscription publique, comme "admin").
 ROLE_ALIASES = {
     "acheteur": "acheteur",
     "buyer": "acheteur",
@@ -55,12 +57,19 @@ ROLE_ALIASES = {
     "logistique": "logistique",
     "driver": "logistique",
     "admin": "admin",
+    "obr": "obr",
+    "ministere_agriculture": "ministere_agriculture",
 }
 
 BUYER_ROLE_VALUES = ["acheteur", "buyer"]
 FARMER_ROLE_VALUES = ["fermier", "farmer"]
 DRIVER_ROLE_VALUES = ["logistique", "driver"]
 ADMIN_ROLE_VALUES = ["admin"]
+OBR_ROLE_VALUES = ["obr"]
+MINISTRY_ROLE_VALUES = ["ministere_agriculture"]
+# Rôles créés uniquement par un admin (comme "admin"), jamais via
+# l'inscription publique — voir backend/services/user_service.py.
+GOVERNMENT_ROLE_VALUES = OBR_ROLE_VALUES + MINISTRY_ROLE_VALUES
 
 # Finance
 MOCK_MOBILE_MONEY_FEE_RATES = {

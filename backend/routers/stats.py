@@ -41,6 +41,61 @@ def get_public_stats(db: Session = Depends(get_db)):
         "province_count": province_count
     }
 
+@router.get("/agriculture")
+def get_agriculture_stats(request: Request, db: Session = Depends(get_db)):
+    """
+    Statistiques agrégées pour la supervision réglementaire (ex. Ministère de
+    l'Agriculture) : production et répartition par province/catégorie, prix
+    du marché. Volontairement dépourvu de toute donnée financière (GMV,
+    commissions, versements) ou nominative individuelle — réservé aux
+    agrégats de politique agricole.
+    """
+    from sqlalchemy import func
+
+    user = utils.get_authenticated_user(request, db)
+    if not user or not utils.user_has_role(user, "admin", "ministere_agriculture"):
+        raise HTTPException(status_code=403, detail="Accès réservé à l'administration et au Ministère de l'Agriculture.")
+
+    farmer_count = db.query(func.count(models.User.id)).filter(
+        models.User.role.in_(config.FARMER_ROLE_VALUES),
+        models.User.is_active == True
+    ).scalar() or 0
+
+    provinces = [
+        p[0] for p in db.query(func.distinct(models.User.province)).filter(
+            models.User.province.isnot(None),
+            models.User.role.in_(config.FARMER_ROLE_VALUES)
+        ).all()
+    ]
+
+    active_products = db.query(models.Product).filter(
+        models.Product.quantity_kg > 0,
+        models.Product.is_active == True
+    ).all()
+
+    production_by_province: dict[str, float] = {}
+    production_by_category: dict[str, float] = {}
+    for p in active_products:
+        qty = float(p.quantity_kg or 0)
+        if p.province:
+            production_by_province[p.province] = production_by_province.get(p.province, 0.0) + qty
+        if p.category:
+            production_by_category[p.category] = production_by_category.get(p.category, 0.0) + qty
+
+    return {
+        "farmer_count": farmer_count,
+        "province_count": len(provinces),
+        "provinces": sorted(provinces),
+        "active_listings": len(active_products),
+        "production_by_province_kg": [
+            {"province": prov, "quantity_kg": qty} for prov, qty in sorted(production_by_province.items())
+        ],
+        "production_by_category_kg": [
+            {"category": cat, "quantity_kg": qty} for cat, qty in sorted(production_by_category.items())
+        ],
+        "market_prices": market_service.get_live_prices(db),
+    }
+
 import fastapi
 
 @router.get("/admin", response_model=schemas.AdminStats)

@@ -369,9 +369,11 @@ def update_admin_settings(payload: schemas.AdminSettingsUpdate, request: Request
     db.add(models.AdminAuditLog(
         admin_user_id=admin.id,
         action="SETTINGS_UPDATED",
+        entity_type="settings",
+        entity_id=cast(int, settings.id),
         detail=f"Mise à jour des paramètres: {update_data}"
     ))
-    
+
     db.commit()
     db.refresh(settings)
     return get_admin_settings(request, db)
@@ -393,12 +395,14 @@ def add_admin_agent(payload: schemas.UserCreate, request: Request, db: Session =
         return {"message": "Utilisateur promu en administrateur"}
 
     from backend.services.user_service import persist_user
-    payload.role = "admin" 
-    new_admin = persist_user(payload, db)
+    payload.role = "admin"
+    new_admin = persist_user(payload, db, is_admin_context=True)
     
     db.add(models.AdminAuditLog(
         admin_user_id=admin.id,
         action="ADMIN_CREATED",
+        entity_type="user",
+        entity_id=new_admin.id,
         detail=f"Nouvel administrateur ajouté: {new_admin.name} ({new_admin.phone_number})"
     ))
     db.commit()

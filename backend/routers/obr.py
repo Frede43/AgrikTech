@@ -20,11 +20,11 @@ def get_vat_report(
 ):
     """
     Génère un rapport de TVA collectée pour l'OBR.
-    Réservé aux administrateurs.
+    Réservé aux administrateurs et aux comptes OBR.
     """
     admin = utils.get_authenticated_user(request, db)
-    if not admin or not utils.user_has_role(admin, "admin"):
-        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs.")
+    if not admin or not utils.user_has_role(admin, "admin", "obr"):
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs et à l'OBR.")
 
     # Définir la plage de dates
     start_date = datetime(year, month, 1)
@@ -84,18 +84,29 @@ def get_vat_report(
     }
 
 @router.get("/invoices/{order_id}")
-def get_obr_invoice_data(order_id: int, db: Session = Depends(get_db)):
+def get_obr_invoice_data(order_id: int, request: Request, db: Session = Depends(get_db)):
     """
     Retourne les données structurées d'une facture pour impression PDF (format OBR).
+    Réservé à l'admin, à l'OBR, et aux deux parties de la commande.
     """
+    user = utils.get_authenticated_user(request, db)
+    if not user:
+        raise HTTPException(status_code=403, detail="Authentification requise.")
+
     order = db.query(models.Order).options(
         joinedload(models.Order.buyer),
         joinedload(models.Order.farmer),
         joinedload(models.Order.items).joinedload(models.OrderItem.product)
     ).filter(models.Order.id == order_id).first()
-    
+
     if not order:
         raise HTTPException(status_code=404, detail="Facture non trouvée.")
+
+    if not (
+        utils.user_has_role(user, "admin", "obr")
+        or user.id in (order.buyer_id, order.farmer_id)
+    ):
+        raise HTTPException(status_code=403, detail="Accès non autorisé à cette facture.")
         
     return {
         "invoice_number": order.invoice_number,

@@ -9,6 +9,8 @@ import { useLanguage } from "@/lib/LanguageContext";
 export function SiteFooter() {
     const { lang, setLang, text } = useLanguage();
     const adminPortalLabel = lang === "fr" ? "Portail Admin" : "Ikibanza c'Admin";
+    const obrPortalLabel = lang === "fr" ? "Portail OBR" : "Ikibanza c'OBR";
+    const ministryPortalLabel = lang === "fr" ? "Portail Ministère de l'Agriculture" : "Ikibanza c'Ubuyobozi bw'Uburimyi";
     const switchLanguageLabel = lang === "fr" ? "Passer en kirundi" : "Subira mu gifaransa";
 
     return (
@@ -57,6 +59,8 @@ export function SiteFooter() {
                             <li><Link href={getSignupPath("acheteur")} className="hover:text-primary transition-colors">{text.roleBuyer}</Link></li>
                             <li><Link href={getSignupPath("logistique")} className="hover:text-primary transition-colors">{text.roleDriver}</Link></li>
                             <li><Link href={getLoginPath("admin")} className="hover:text-primary transition-colors">{adminPortalLabel}</Link></li>
+                            <li><Link href={getLoginPath("obr")} className="hover:text-primary transition-colors">{obrPortalLabel}</Link></li>
+                            <li><Link href={getLoginPath("ministere_agriculture")} className="hover:text-primary transition-colors">{ministryPortalLabel}</Link></li>
                         </ul>
                     </div>
 
