@@ -208,12 +208,16 @@ export default function LandingPage() {
         ? copy.heroInsightDown
         : copy.heroInsightStable
     : copy.heroLiveTitle;
-  // `?? ` (pas `||`) : un vrai compte de 0 (plateforme neuve) ne doit pas être
-  // remplacé par le repli — seul `null` (avant le premier fetch, ou échec) l'est.
-  const socialProofLabel = text.socialProof
-    .replace("{count}", (publicStats?.farmer_count ?? 1200).toLocaleString())
-    .replace("{provinces}", String(publicStats?.province_count ?? 9))
-    + (activeMarket ? ` · ${prices.length} ${copy.heroLiveProducts}` : "");
+  // Pas de repli avec des chiffres inventés (1200 fermiers / 9 provinces) : sur
+  // une plateforme encore jeune, ça affichait un nombre flatteur puis un flash
+  // vers le vrai chiffre une fois /stats/public résolu — visible et malhonnête.
+  // On n'affiche donc rien tant que le vrai compte n'est pas connu.
+  const socialProofLabel = publicStats
+    ? text.socialProof
+        .replace("{count}", publicStats.farmer_count.toLocaleString())
+        .replace("{provinces}", String(publicStats.province_count))
+      + (activeMarket ? ` · ${prices.length} ${copy.heroLiveProducts}` : "")
+    : null;
 
   // Auto-advance carousel
   useEffect(() => {
@@ -305,10 +309,12 @@ export default function LandingPage() {
 
         <div className="relative max-w-6xl mx-auto px-4 md:px-6 py-20 md:py-28">
           {/* Social proof pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white text-xs font-medium mb-6">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            {socialProofLabel}
-          </div>
+          {socialProofLabel && (
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white text-xs font-medium mb-6">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+              {socialProofLabel}
+            </div>
+          )}
 
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,420px)] lg:items-end">
             <div>

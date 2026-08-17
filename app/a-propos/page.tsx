@@ -8,7 +8,10 @@ import { Sprout, Target, Eye, Users } from "lucide-react";
 
 export default function AboutPage() {
     const { text } = useLanguage();
-    const [farmerCount, setFarmerCount] = useState(1200);
+    // null tant que /stats/public n'a pas répondu : pas de faux chiffre
+    // affiché puis remplacé par le vrai (voir app/page.tsx pour le même souci
+    // sur la page d'accueil).
+    const [farmerCount, setFarmerCount] = useState<number | null>(null);
 
     useEffect(() => {
         const loadStats = async () => {
@@ -27,7 +30,13 @@ export default function AboutPage() {
 
     const sections = [
         { icon: Sprout, title: text.aboutWhy1Title, desc: text.aboutWhy1Desc },
-        { icon: Users, title: text.aboutWhy2Title, desc: text.aboutWhy2Desc.replace("{count}", farmerCount.toLocaleString()) },
+        {
+            icon: Users,
+            title: text.aboutWhy2Title,
+            desc: farmerCount !== null
+                ? text.aboutWhy2Desc.replace("{count}", farmerCount.toLocaleString())
+                : text.aboutWhy2Desc.replace("+{count} ", ""),
+        },
         { icon: Eye, title: text.aboutWhy3Title, desc: text.aboutWhy3Desc }
     ];
 
