@@ -73,6 +73,12 @@ def create_product(product: schemas.ProductCreate, request: Request, db: Session
     if not user or not utils.user_has_role(user, "farmer"):
         raise HTTPException(status_code=403, detail="Réservé aux fermiers.")
 
+    if (product.category or "").strip().lower() in config.RESTRICTED_PRODUCT_CATEGORIES:
+        raise HTTPException(
+            status_code=403,
+            detail="La vente de café/thé est temporairement suspendue sur AgriConnect en attendant clarification du cadre réglementaire (ODECA/OTB).",
+        )
+
     farmer_id = user.id
     trace_token = f"AGRI-{uuid.uuid4().hex[:8].upper()}"
 
@@ -107,6 +113,11 @@ def update_product(product_id: int, product_update: schemas.ProductUpdate, reque
         raise HTTPException(status_code=403, detail="Accès refusé ou produit non trouvé.")
 
     payload = product_update.model_dump(exclude_unset=True)
+    if str(payload.get("category", "")).strip().lower() in config.RESTRICTED_PRODUCT_CATEGORIES:
+        raise HTTPException(
+            status_code=403,
+            detail="La vente de café/thé est temporairement suspendue sur AgriConnect en attendant clarification du cadre réglementaire (ODECA/OTB).",
+        )
     stock_reason_code = payload.pop("stock_reason_code", None)
     stock_reason_note = payload.pop("stock_reason_note", None)
 

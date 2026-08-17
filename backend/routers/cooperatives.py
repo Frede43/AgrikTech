@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
-import backend.models as models, backend.schemas as schemas, backend.utils as utils
+import backend.models as models, backend.schemas as schemas, backend.utils as utils, backend.config as config
 from backend.database import get_db
 
 router = APIRouter(
@@ -89,7 +89,13 @@ def create_cooperative_product(coop_id: int, product: schemas.ProductCreate, req
     # Vérifier si l'utilisateur est membre de cette coop
     if user.cooperative_id != coop_id:
         raise HTTPException(status_code=403, detail="Vous n'êtes pas autorisé à vendre pour cette coopérative.")
-    
+
+    if (product.category or "").strip().lower() in config.RESTRICTED_PRODUCT_CATEGORIES:
+        raise HTTPException(
+            status_code=403,
+            detail="La vente de café/thé est temporairement suspendue sur AgriConnect en attendant clarification du cadre réglementaire (ODECA/OTB).",
+        )
+
     # exclude=cooperative_id/farmer_id : ProductCreate en porte déjà (hérités
     # de ProductBase, généralement None côté client), il ne faut pas les
     # dupliquer avec les valeurs, faisant autorité, calculées ici.

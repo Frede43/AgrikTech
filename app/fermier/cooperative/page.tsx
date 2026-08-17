@@ -198,7 +198,10 @@ export default function FarmerCooperativePage() {
                                             <option value="legumes">{text.stockLegumes}</option>
                                             <option value="cereales">{text.stockCereales}</option>
                                             <option value="fruits">{text.stockFruits}</option>
-                                            <option value="export">Export (Café/Thé)</option>
+                                            {/* "export" (Café/Thé) retiré temporairement : filière régulée par
+                                                l'ODECA/OTB, en attente de clarification réglementaire — voir
+                                                config.RESTRICTED_PRODUCT_CATEGORIES côté backend qui bloque
+                                                aussi la création côté API, pas seulement ce menu. */}
                                         </select>
                                     </div>
                                     <div className="space-y-2">

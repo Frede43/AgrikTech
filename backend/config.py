@@ -44,6 +44,13 @@ MIN_WITHDRAWAL_AMOUNT = Decimal("10000.0")
 AUTO_WITHDRAWAL_REVIEW_THRESHOLD = Decimal("25000.0")
 WITHDRAWAL_REVIEW_SLA_HOURS = 24
 
+# Catégories de produits temporairement bloquées à la création, en attendant
+# clarification réglementaire. "export" (café/thé) : le café est régulé de
+# bout en bout par l'ODECA (ex-ARFIC, État burundais depuis 2020) — production,
+# transformation ET commercialisation — et le thé suit un schéma comparable
+# via l'OTB. Retirer "export" de cette liste dès que le statut est clarifié.
+RESTRICTED_PRODUCT_CATEGORIES = {"export"}
+
 # Logistique Burundi
 LOGISTICS_PRICE_PER_KM = Decimal("500.0") # BIF/km
 LOGISTICS_FIXED_FEE_BUJUMBURA = Decimal("2000.0")
