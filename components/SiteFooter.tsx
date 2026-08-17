@@ -117,8 +117,8 @@ export function SiteFooter() {
                         {text.footer}
                     </p>
                     <div className="flex items-center gap-8 text-xs font-medium">
-                        <a href="#" className="hover:text-white transition-colors">{text.legalTerms}</a>
-                        <a href="#" className="hover:text-white transition-colors">{text.legalPrivacy}</a>
+                        <Link href="/conditions" className="hover:text-white transition-colors">{text.legalTerms}</Link>
+                        <Link href="/confidentialite" className="hover:text-white transition-colors">{text.legalPrivacy}</Link>
                         <button
                             onClick={() => setLang(lang === "fr" ? "ki" : "fr")}
                             className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 text-slate-300 hover:bg-white/10 transition-colors"

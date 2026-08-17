@@ -229,7 +229,15 @@ function ProfileForm() {
 
             <div className="mt-auto pt-10 text-center">
                 <p className="text-xs text-muted-foreground">
-                    En créant un compte, vous acceptez nos <span className="underline">Conditions d'Utilisation</span>.
+                    En créant un compte, vous acceptez nos{" "}
+                    <Link href="/conditions" target="_blank" className="underline hover:text-primary">
+                        Conditions d&apos;utilisation
+                    </Link>{" "}
+                    et notre{" "}
+                    <Link href="/confidentialite" target="_blank" className="underline hover:text-primary">
+                        Politique de confidentialité
+                    </Link>
+                    .
                 </p>
                 <p className="text-xs text-muted-foreground mt-3">
                     Vous avez déjà un compte ?{" "}
