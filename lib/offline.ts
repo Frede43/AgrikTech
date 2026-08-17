@@ -62,7 +62,16 @@ function emitQueueUpdated() {
 }
 
 export function useOnlineStatus() {
-  const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
+  // Toujours "true" au premier rendu, y compris côté client : Node.js expose
+  // un global `navigator` (sans `.onLine`, qui vaut alors `undefined`), donc
+  // `typeof navigator === "undefined"` est FAUX côté serveur — l'ancien code
+  // y lisait `navigator.onLine` (undefined, donc "hors ligne") pendant que le
+  // navigateur, lui, rendait `true` dès le premier rendu client : un vrai
+  // écart de contenu entre le HTML serveur et l'hydratation React. Le vrai
+  // statut réseau est de toute façon vérifié juste après via l'effet
+  // ci-dessous (ping réel sur /api/health), donc la valeur initiale n'a
+  // besoin d'être exacte que le temps de ce premier check.
+  const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
