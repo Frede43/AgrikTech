@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
@@ -118,3 +119,32 @@ def create_cooperative_product(coop_id: int, product: schemas.ProductCreate, req
 @router.get("/{coop_id}/products", response_model=List[schemas.Product])
 def get_cooperative_products(coop_id: int, db: Session = Depends(get_db)):
     return db.query(models.Product).options(joinedload(models.Product.cooperative)).filter(models.Product.cooperative_id == coop_id).all()
+
+@router.get("/{coop_id}/stats")
+def get_cooperative_stats(coop_id: int, db: Session = Depends(get_db)):
+    coop = db.query(models.Cooperative).filter(models.Cooperative.id == coop_id).first()
+    if not coop:
+        raise HTTPException(status_code=404, detail="Coopérative non trouvée.")
+
+    total_stock_kg = db.query(func.sum(models.Product.quantity_kg)).filter(
+        models.Product.cooperative_id == coop_id,
+        models.Product.is_active == True,
+    ).scalar() or 0.0
+
+    # Ventes réelles : on part des lignes de commande (OrderItem.price_at_order,
+    # figé au moment de l'achat) plutôt que du prix courant du produit, qui a pu
+    # changer depuis — et on ne compte que les commandes réellement abouties.
+    sales_rows = db.query(models.OrderItem.price_at_order, models.OrderItem.quantity).join(
+        models.Product, models.OrderItem.product_id == models.Product.id
+    ).join(
+        models.Order, models.OrderItem.order_id == models.Order.id
+    ).filter(
+        models.Product.cooperative_id == coop_id,
+        models.Order.status == "COMPLETED",
+    ).all()
+    total_sales = sum(float(price) * float(quantity) for price, quantity in sales_rows)
+
+    return {
+        "total_stock_kg": float(total_stock_kg),
+        "total_sales": total_sales,
+    }

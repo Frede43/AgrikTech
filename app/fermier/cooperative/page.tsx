@@ -5,10 +5,11 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, ShieldCheck, MapPin, Phone, Leaf } from "lucide-react";
+import { Users, ShieldCheck, MapPin, Phone, Leaf, Package, TrendingUp } from "lucide-react";
 import { apiFetch } from "@/lib/api-config";
 import { useRequiredSession } from "@/lib/session";
 import { useLanguage } from "@/lib/LanguageContext";
+import { formatBIF } from "@/lib/currency";
 
 export default function FarmerCooperativePage() {
   const { session } = useRequiredSession("fermier");
@@ -20,6 +21,7 @@ export default function FarmerCooperativePage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newCoop, setNewCoop] = useState({ name: "", province: "", commune: "", contact_phone: "" });
   const [coopProducts, setCoopProducts] = useState<any[]>([]);
+  const [coopStats, setCoopStats] = useState<{ total_stock_kg: number; total_sales: number } | null>(null);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [newProduct, setNewProduct] = useState({ name: "", category: "legumes", price_per_kg: 0, quantity_kg: 0, province: "" });
 
@@ -30,6 +32,7 @@ export default function FarmerCooperativePage() {
         if (u.cooperative_id) {
           apiFetch(`/cooperatives/${u.cooperative_id}/members`).then(setMembers);
           apiFetch(`/cooperatives/${u.cooperative_id}/products`).then(setCoopProducts);
+          apiFetch(`/cooperatives/${u.cooperative_id}/stats`).then(setCoopStats).catch(() => setCoopStats(null));
           // On simule le chargement de la coop spécifique ou on peut fetcher
           apiFetch("/cooperatives").then(coops => {
              const myCoop = coops.find((c: any) => c.id === u.cooperative_id);
@@ -130,6 +133,40 @@ export default function FarmerCooperativePage() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Stock et ventes collectives */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <Card className="border-border/50 shadow-sm rounded-[2rem] overflow-hidden">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                  <Package className="w-7 h-7" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    {lang === 'fr' ? 'Stock total' : 'Ibiri mu bubiko vyose'}
+                  </p>
+                  <p className="text-2xl font-black text-foreground tracking-tight">
+                    {coopStats ? `${coopStats.total_stock_kg.toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US')} kg` : '—'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50 shadow-sm rounded-[2rem] overflow-hidden">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 shrink-0">
+                  <TrendingUp className="w-7 h-7" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    {lang === 'fr' ? 'Ventes totales' : 'Amagurisha yose'}
+                  </p>
+                  <p className="text-2xl font-black text-foreground tracking-tight">
+                    {coopStats ? formatBIF(coopStats.total_sales) : '—'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Liste des membres */}
