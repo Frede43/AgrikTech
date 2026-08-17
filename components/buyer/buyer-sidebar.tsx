@@ -16,6 +16,7 @@ import {
   LogOut,
   MessageCircle,
   CloudSun,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -47,6 +48,7 @@ export function BuyerSidebar({ mobile = false }: BuyerSidebarProps) {
       notifications: "Notifications",
       settings: "Paramètres",
       support: "Aide & Support",
+      guide: "Guide d'utilisation",
       logout: "Déconnexion",
     },
     ki: {
@@ -63,6 +65,7 @@ export function BuyerSidebar({ mobile = false }: BuyerSidebarProps) {
       notifications: "Amenyesha",
       settings: "Amagenamiterere",
       support: "Imfashanyo n'ubufasha",
+      guide: "Ubuyobozi bwo gukoresha",
       logout: "Gusohoka",
     },
   }[lang];
@@ -140,6 +143,10 @@ export function BuyerSidebar({ mobile = false }: BuyerSidebarProps) {
         <Link href="/acheteur/parametres" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors">
           <Settings className="w-4 h-4" />
           {copy.settings}
+        </Link>
+        <Link href="/acheteur/guide" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors">
+          <BookOpen className="w-4 h-4" />
+          {copy.guide}
         </Link>
         <Link href="/acheteur/support" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors">
           <MessageCircle className="w-4 h-4" />
