@@ -21,6 +21,7 @@ import { apiFetch } from "@/lib/api-config";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useRequiredSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { isLikelyNetworkError, logIfNotNetworkError, useOnlineStatus } from "@/lib/offline";
 
 type Status = "all" | "open" | "in-review" | "resolved";
 
@@ -65,6 +66,7 @@ const priorityConfig: Record<string, string> = {
 export default function AdminLitigesPage() {
   const { lang } = useLanguage();
   const { session, ready } = useRequiredSession("admin");
+  const isOnline = useOnlineStatus();
   const [disputes, setDisputes] = useState<DisputeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +83,7 @@ export default function AdminLitigesPage() {
       loadError: "Impossible de charger les litiges.",
       sessionError: "Session administrateur introuvable.",
       updateError: "Impossible de mettre à jour ce litige.",
+      offlineError: "Hors ligne : reconnectez-vous pour agir sur ce litige.",
       statusOpen: "Ouvert",
       statusReview: "En révision",
       statusResolved: "Résolu",
@@ -110,6 +113,7 @@ export default function AdminLitigesPage() {
       loadError: "Ntivyashobotse kuronka impari.",
       sessionError: "Session ya admin ntibonetse.",
       updateError: "Ntivyashobotse guhindura iyi mpari.",
+      offlineError: "Nta internet: subira ku murongo kugira ukore kuri iyi mpari.",
       statusOpen: "Biruguruye",
       statusReview: "Biriko birasuzumwa",
       statusResolved: "Vyatunganijwe",
@@ -186,6 +190,10 @@ export default function AdminLitigesPage() {
       setError(copy.sessionError);
       return;
     }
+    if (!isOnline) {
+      setError(copy.offlineError);
+      return;
+    }
 
     setActionKey(`${action}-${dbId}`);
     try {
@@ -197,8 +205,8 @@ export default function AdminLitigesPage() {
       setExpanded(updated.id);
       setError(null);
     } catch (err: any) {
-      console.error(`Dispute ${action} error`, err);
-      setError(err.message || copy.updateError);
+      logIfNotNetworkError(`Dispute ${action} error`, err);
+      setError(isLikelyNetworkError(err) ? copy.offlineError : (err.message || copy.updateError));
     } finally {
       setActionKey(null);
     }
@@ -369,7 +377,7 @@ export default function AdminLitigesPage() {
                         size="sm"
                         variant="outline"
                         className="text-xs border-border"
-                        disabled={actionKey !== null || d.status === "in-review"}
+                        disabled={actionKey !== null || d.status === "in-review" || !isOnline}
                         onClick={() => void handleAction(d.dbId, "review")}
                       >
                         {actionKey === `review-${d.dbId}` ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
@@ -378,7 +386,7 @@ export default function AdminLitigesPage() {
                       <Button
                         size="sm"
                         className="text-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                        disabled={actionKey !== null}
+                        disabled={actionKey !== null || !isOnline}
                         onClick={() => void handleAction(d.dbId, "refund")}
                       >
                         {actionKey === `refund-${d.dbId}` ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
@@ -388,7 +396,7 @@ export default function AdminLitigesPage() {
                         size="sm"
                         variant="outline"
                         className="text-xs border-border text-destructive hover:bg-destructive/10"
-                        disabled={actionKey !== null}
+                        disabled={actionKey !== null || !isOnline}
                         onClick={() => void handleAction(d.dbId, "reject")}
                       >
                         {actionKey === `reject-${d.dbId}` ? <Loader2 className="w-3 h-3 animate-spin" /> : null}

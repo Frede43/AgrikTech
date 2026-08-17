@@ -10,14 +10,17 @@ import { apiFetch } from "@/lib/api-config";
 import { useRequiredSession } from "@/lib/session";
 import { useLanguage } from "@/lib/LanguageContext";
 import { cn } from "@/lib/utils";
+import { logIfNotNetworkError, useOnlineStatus } from "@/lib/offline";
 
 export default function BuyerMessagesPage() {
   const { session } = useRequiredSession("acheteur");
   const { lang } = useLanguage();
+  const isOnline = useOnlineStatus();
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeChat, setActiveChat] = useState<number | null>(null);
   const [newMessage, setNewMessage] = useState("");
+  const [sendError, setSendError] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -29,8 +32,9 @@ export default function BuyerMessagesPage() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage || !activeChat) return;
+    if (!newMessage || !activeChat || !isOnline) return;
 
+    setSendError(false);
     try {
       const res = await apiFetch("/messages", {
         method: "POST",
@@ -42,7 +46,8 @@ export default function BuyerMessagesPage() {
       setMessages([res, ...messages]);
       setNewMessage("");
     } catch (err) {
-      console.error(err);
+      logIfNotNetworkError("Message send error", err);
+      setSendError(true);
     }
   };
 
@@ -118,15 +123,26 @@ export default function BuyerMessagesPage() {
                     </div>
                   ))}
               </div>
-              <div className="p-4 border-t">
+              <div className="p-4 border-t space-y-2">
+                {!isOnline && (
+                  <p className="text-xs text-amber-700 font-medium">
+                    {lang === "fr" ? "Hors ligne : reconnectez-vous pour envoyer ce message." : "Nta internet: subira ku murongo kugira urungike ubu butumwa."}
+                  </p>
+                )}
+                {sendError && isOnline && (
+                  <p className="text-xs text-destructive font-medium">
+                    {lang === "fr" ? "Échec de l'envoi. Réessayez." : "Ntivyashobotse kurungika. Ongera ugerageze."}
+                  </p>
+                )}
                 <form onSubmit={handleSend} className="flex gap-2">
-                  <Input 
-                    placeholder="Votre message..." 
+                  <Input
+                    placeholder="Votre message..."
                     className="rounded-xl h-11"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
+                    disabled={!isOnline}
                   />
-                  <Button type="submit" size="icon" className="h-11 w-11 shrink-0 rounded-xl">
+                  <Button type="submit" size="icon" className="h-11 w-11 shrink-0 rounded-xl" disabled={!isOnline || !newMessage}>
                     <Send className="w-4 h-4" />
                   </Button>
                 </form>

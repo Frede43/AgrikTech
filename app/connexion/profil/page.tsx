@@ -23,6 +23,7 @@ import {
     persistSessionSnapshot,
     type CanonicalRole,
 } from "@/lib/api-config";
+import { isLikelyNetworkError, useOnlineStatus } from "@/lib/offline";
 
 function ProfileForm() {
     const router = useRouter();
@@ -31,6 +32,7 @@ function ProfileForm() {
     const requestedRole = normalizeRole(searchParams.get("role"));
     const initialRole: CanonicalRole = requestedRole && requestedRole !== "admin" ? requestedRole : "acheteur";
 
+    const isOnline = useOnlineStatus();
     const [name, setName] = useState("");
     const [province, setProvince] = useState("");
     const [address, setAddress] = useState("");
@@ -50,7 +52,7 @@ function ProfileForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name || !province) return;
+        if (!name || !province || !isOnline) return;
 
         setLoading(true);
         setError("");
@@ -75,7 +77,7 @@ function ProfileForm() {
             persistSessionSnapshot(session);
             router.push(getRoleHomePath(session.role));
         } catch (err: any) {
-            setError(err.message);
+            setError(isLikelyNetworkError(err) ? "Hors ligne : reconnectez-vous pour créer votre compte." : err.message);
         } finally {
             setLoading(false);
         }
@@ -210,12 +212,17 @@ function ProfileForm() {
                 <div className="pt-4">
                     <Button
                         type="submit"
-                        disabled={loading || !name || !province || !address}
+                        disabled={loading || !name || !province || !address || !isOnline}
                         className="w-full h-12 font-semibold gap-2 rounded-xl"
                     >
                         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Créer mon compte"}
                         {!loading && <CheckCircle className="w-4 h-4" />}
                     </Button>
+                    {!isOnline && (
+                        <p className="text-sm text-amber-700 text-center font-medium mt-3">
+                            Hors ligne : reconnectez-vous pour créer votre compte.
+                        </p>
+                    )}
                     {error && <p className="text-sm text-destructive text-center mt-3">{error}</p>}
                 </div>
             </form>

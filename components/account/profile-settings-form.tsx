@@ -10,6 +10,7 @@ import { apiFetch, buildImageUrl, getRoleLabel, type CanonicalRole } from "@/lib
 import { useRequiredSession } from "@/lib/session";
 import { formatUserCoordinates, formatUserLocation, useSessionUserProfile } from "@/lib/user-profile";
 import { useLanguage } from "@/lib/LanguageContext";
+import { isLikelyNetworkError, useOnlineStatus } from "@/lib/offline";
 
 interface ProfileSettingsFormProps {
     role: CanonicalRole;
@@ -30,6 +31,7 @@ const EMPTY_FORM: FormState = { name: "", province: "", address: "", commune: ""
 
 export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsFormProps) {
     const { session, ready } = useRequiredSession(role);
+    const isOnline = useOnlineStatus();
     const { user, setUser, loading } = useSessionUserProfile(session, ready);
     const [form, setForm] = useState<FormState>(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
@@ -45,6 +47,7 @@ export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsF
     const copy = lang === "fr"
         ? {
             nameRequired: "Le nom est requis.",
+            offlineError: "Hors ligne : reconnectez-vous pour enregistrer.",
             kycTitle: "Vérification d'identité (KYC)",
             kycSub: "Requis pour retirer vos gains ou demander un crédit agricole.",
             kycIdNumber: "Numéro CNI ou passeport",
@@ -63,6 +66,7 @@ export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsF
         }
         : {
             nameRequired: "Izina ni ngombwa.",
+            offlineError: "Nta internet: subira ku murongo kugira ubike.",
             kycTitle: "Kwemeza uwo uri we (KYC)",
             kycSub: "Bisabwa kugira ukure amahera yawe canke usabe ideni ry'uburimyi.",
             kycIdNumber: "Nomero y'ikarangamuntu canke pasiporo",
@@ -106,6 +110,10 @@ export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsF
             setError(copy.nameRequired);
             return;
         }
+        if (!isOnline) {
+            setError(copy.offlineError);
+            return;
+        }
 
         setSaving(true);
         setError(null);
@@ -129,7 +137,7 @@ export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsF
             setUser(updated as any);
             setFeedback(text.settingsSuccessMsg);
         } catch (err: any) {
-            setError(err.message || text.settingsErrorMsg);
+            setError(isLikelyNetworkError(err) ? copy.offlineError : (err.message || text.settingsErrorMsg));
         } finally {
             setSaving(false);
         }
@@ -139,6 +147,10 @@ export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsF
         if (!session) return;
         if (!idNumber.trim()) {
             setKycError(copy.kycIdRequired);
+            return;
+        }
+        if (!isOnline) {
+            setKycError(copy.offlineError);
             return;
         }
 
@@ -174,7 +186,7 @@ export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsF
             if (fileInputRef.current) fileInputRef.current.value = "";
             setKycFeedback(copy.kycSent);
         } catch (err: any) {
-            setKycError(err.message || text.settingsErrorMsg);
+            setKycError(isLikelyNetworkError(err) ? copy.offlineError : (err.message || text.settingsErrorMsg));
         } finally {
             setSubmittingKyc(false);
         }
@@ -249,7 +261,7 @@ export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsF
                     {feedback && <p className="text-sm text-primary font-medium">{feedback}</p>}
 
                     <div className="flex justify-end pt-2">
-                        <Button onClick={handleSave} disabled={saving || !form.name.trim()} className="gap-2 px-6">
+                        <Button onClick={handleSave} disabled={saving || !form.name.trim() || !isOnline} className="gap-2 px-6">
                             {saving ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Save className="w-4 h-4 text-white" />}
                             {text.settingsSaveBtn}
                         </Button>
@@ -307,7 +319,7 @@ export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsF
                     {kycFeedback && <p className="text-sm text-primary font-medium">{kycFeedback}</p>}
 
                     <div className="flex justify-end pt-2">
-                        <Button onClick={handleKycSubmit} disabled={submittingKyc || !idNumber.trim()} variant="outline" className="gap-2 px-6">
+                        <Button onClick={handleKycSubmit} disabled={submittingKyc || !idNumber.trim() || !isOnline} variant="outline" className="gap-2 px-6">
                             {submittingKyc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                             {copy.kycSubmit}
                         </Button>

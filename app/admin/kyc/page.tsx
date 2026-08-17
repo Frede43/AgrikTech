@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, Clock, FileText, Loader2, Search, ShieldAlert, XCircle } from "lucide-react";
 import { apiFetch, buildImageUrl } from "@/lib/api-config";
 import { useLanguage } from "@/lib/LanguageContext";
+import { logIfNotNetworkError, useOnlineStatus } from "@/lib/offline";
 
 interface KycUser {
   id: number;
@@ -25,6 +26,7 @@ type StatusFilter = "all" | "pending" | "verified" | "rejected";
 
 export default function AdminKycPage() {
   const { lang, text } = useLanguage();
+  const isOnline = useOnlineStatus();
   const [users, setUsers] = useState<KycUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -49,6 +51,7 @@ export default function AdminKycPage() {
   }, []);
 
   const handleReview = async (id: number, status: "verified" | "rejected") => {
+    if (!isOnline) return;
     setActionId(id);
     try {
       const noteValue = notes[id]?.trim() || "";
@@ -57,7 +60,7 @@ export default function AdminKycPage() {
       });
       await loadUsers();
     } catch (err) {
-      console.error(err);
+      logIfNotNetworkError("KYC review error", err);
     } finally {
       setActionId(null);
     }
@@ -194,7 +197,7 @@ export default function AdminKycPage() {
                         <div className="flex gap-2 shrink-0">
                           <Button
                             onClick={() => handleReview(u.id, "rejected")}
-                            disabled={actionId === u.id}
+                            disabled={actionId === u.id || !isOnline}
                             variant="outline"
                             className="gap-2 border-red-500/20 text-red-500 hover:bg-red-500/5"
                           >
@@ -203,13 +206,18 @@ export default function AdminKycPage() {
                           </Button>
                           <Button
                             onClick={() => handleReview(u.id, "verified")}
-                            disabled={actionId === u.id}
+                            disabled={actionId === u.id || !isOnline}
                             className="gap-2 bg-sidebar-primary"
                           >
                             {actionId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                             {lang === "fr" ? "Valider" : "Emeza"}
                           </Button>
                         </div>
+                        {!isOnline && (
+                          <p className="w-full text-xs text-amber-700 font-medium text-right">
+                            {lang === "fr" ? "Hors ligne : reconnectez-vous pour traiter ce dossier." : "Nta internet: subira ku murongo."}
+                          </p>
+                        )}
                       </div>
                     )}
 

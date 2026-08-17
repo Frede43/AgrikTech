@@ -8,6 +8,7 @@ import { apiFetch, getApiErrorStatus } from "@/lib/api-config";
 import { useRequiredSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/LanguageContext";
+import { isLikelyNetworkError, useOnlineStatus } from "@/lib/offline";
 
 interface NotificationItem {
   id: string;
@@ -27,6 +28,7 @@ const notifIcons: Record<string, ReactNode> = {
 export default function LogisticsNotificationsPage() {
   const { lang, text } = useLanguage();
   const { session, ready } = useRequiredSession("logistique");
+  const isOnline = useOnlineStatus();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,18 +39,20 @@ export default function LogisticsNotificationsPage() {
       dismiss: "Supprimer",
       dismissing: "Suppression...",
       dismissError: "Impossible de supprimer cette notification.",
+      offlineError: "Hors ligne : reconnectez-vous pour supprimer cette notification.",
       loadError: "Impossible de charger les notifications.",
     },
     ki: {
       dismiss: "Kuraho",
       dismissing: "Turiko turakuraho...",
       dismissError: "Ntivyashobotse gukuraho iri menyesha.",
+      offlineError: "Nta internet: subira ku murongo.",
       loadError: "Ntivyashobotse kuronka amamenyesha.",
     },
   }[lang];
 
   const handleDismiss = async (notificationId: string) => {
-    if (!session) return;
+    if (!session || !isOnline) return;
     setDismissingIds((current) => (current.includes(notificationId) ? current : [...current, notificationId]));
 
     try {
@@ -62,7 +66,7 @@ export default function LogisticsNotificationsPage() {
       if (getApiErrorStatus(err) !== 401) {
         console.error("Logistics notifications dismiss error", err);
       }
-      setError(err instanceof Error && err.message ? err.message : copy.dismissError);
+      setError(isLikelyNetworkError(err) ? copy.offlineError : (err instanceof Error && err.message ? err.message : copy.dismissError));
     } finally {
       setDismissingIds((current) => current.filter((item) => item !== notificationId));
     }
@@ -127,7 +131,7 @@ export default function LogisticsNotificationsPage() {
                   <button
                     type="button"
                     onClick={() => void handleDismiss(n.id)}
-                    disabled={dismissingIds.includes(n.id)}
+                    disabled={dismissingIds.includes(n.id) || !isOnline}
                     className="text-xs font-semibold text-muted-foreground hover:text-foreground disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {dismissingIds.includes(n.id) ? copy.dismissing : copy.dismiss}

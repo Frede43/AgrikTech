@@ -19,6 +19,7 @@ import {
     persistSessionSnapshot,
 } from "@/lib/api-config";
 import { useLanguage } from "@/lib/LanguageContext";
+import { isLikelyNetworkError, useOnlineStatus } from "@/lib/offline";
 
 type Step = "phone" | "otp";
 
@@ -35,6 +36,8 @@ function SignupContent() {
         ? {
             sendError: "Erreur lors de l'envoi du code.",
             invalidOtp: "Code invalide ou expiré.",
+            offlineError: "Hors ligne : reconnectez-vous pour recevoir le code.",
+            offlineErrorOtp: "Hors ligne : reconnectez-vous pour vérifier le code.",
             restrictedTitle: "Accès restreint",
             backHome: "Retour à l'accueil",
             switchLanguage: "Kirundi",
@@ -47,6 +50,8 @@ function SignupContent() {
         : {
             sendError: "Ntivyashobotse kurungika kode.",
             invalidOtp: "Kode siyo canke yarengeje igihe.",
+            offlineError: "Nta internet: subira ku murongo kugira uronke kode.",
+            offlineErrorOtp: "Nta internet: subira ku murongo kugira urabe kode.",
             restrictedTitle: "Ntivyemewe",
             backHome: "Subira ku ntango",
             switchLanguage: "Igifaransa",
@@ -56,6 +61,7 @@ function SignupContent() {
             farmerDescription: "Yo kugurisha umwimbu wawe no gukurikirana amafaranga winjiza.",
             driverDescription: "Yo gucunga gutanga no kurondera ibikorwa wagenewe.",
         };
+    const isOnline = useOnlineStatus();
     const [step, setStep] = useState<Step>("phone");
     const [phone, setPhone] = useState(initialPhone);
     const [otp, setOtp] = useState("");
@@ -125,7 +131,7 @@ function SignupContent() {
     }
 
     const handleSendOtp = async () => {
-        if (phone.length < 8) return;
+        if (phone.length < 8 || !isOnline) return;
         setLoading(true);
         setError("");
         try {
@@ -135,14 +141,14 @@ function SignupContent() {
             });
             setStep("otp");
         } catch (err: any) {
-            setError(err.message || copy.sendError);
+            setError(isLikelyNetworkError(err) ? copy.offlineError : (err.message || copy.sendError));
         } finally {
             setLoading(false);
         }
     };
 
     const handleVerifyOtp = async () => {
-        if (otp.length < 4) return;
+        if (otp.length < 4 || !isOnline) return;
         setLoading(true);
         setError("");
         try {
@@ -177,7 +183,7 @@ function SignupContent() {
 
             router.push(`/inscription/profil?role=${role}&phone=${encodeURIComponent(phone)}`);
         } catch (err: any) {
-            setError(err.message || copy.invalidOtp);
+            setError(isLikelyNetworkError(err) ? copy.offlineErrorOtp : (err.message || copy.invalidOtp));
         } finally {
             setLoading(false);
         }
@@ -275,10 +281,11 @@ function SignupContent() {
                             </div>
                         </div>
 
-                        <Button onClick={handleSendOtp} disabled={phone.length < 8 || loading} className="w-full h-12 font-semibold gap-2">
+                        <Button onClick={handleSendOtp} disabled={phone.length < 8 || loading || !isOnline} className="w-full h-12 font-semibold gap-2">
                             {loading ? text.authSending : text.authSmsButton}
                             {!loading && <ArrowRight className="w-4 h-4" />}
                         </Button>
+                        {!isOnline && <p className="text-sm text-amber-700 text-center font-medium">{copy.offlineError}</p>}
                         {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
                         <p className="text-sm text-center text-muted-foreground">
@@ -317,10 +324,11 @@ function SignupContent() {
                             </InputOTP>
                         </div>
 
-                        <Button onClick={handleVerifyOtp} disabled={otp.length < 4 || loading} className="w-full h-12 font-semibold">
+                        <Button onClick={handleVerifyOtp} disabled={otp.length < 4 || loading || !isOnline} className="w-full h-12 font-semibold">
                             {loading ? text.authVerifying : text.authVerifyButton}
                         </Button>
 
+                        {!isOnline && <p className="text-sm text-amber-700 text-center font-medium mt-2">{copy.offlineErrorOtp}</p>}
                         {error && <p className="text-sm text-destructive text-center leading-none mt-2">{error}</p>}
 
                         <button

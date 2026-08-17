@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api-config";
-import { getDisplayErrorMessage, logIfNotNetworkError } from "@/lib/offline";
+import { getDisplayErrorMessage, logIfNotNetworkError, useOnlineStatus } from "@/lib/offline";
 import { useRequiredSession } from "@/lib/session";
 import { useLanguage } from "@/lib/LanguageContext";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,7 @@ export default function LivraisonDetailPage() {
   const router = useRouter();
   const { lang, text } = useLanguage();
   const { session, ready } = useRequiredSession("logistique");
+  const isOnline = useOnlineStatus();
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const [delivery, setDelivery] = useState<DeliveryDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +65,7 @@ export default function LivraisonDetailPage() {
   }, [id, ready, session]);
 
   const handleAction = async () => {
-    if (!delivery || !session || !valCode) return;
+    if (!delivery || !session || !valCode || !isOnline) return;
 
     const isPickupStep = ["pending", "ready_for_pickup", "paid_escrow", "confirmed"].includes(delivery.status);
     const isDeliveryStep = ["collected", "picked_up", "in_transit", "delivered_pending_confirmation"].includes(delivery.status);
@@ -277,12 +278,19 @@ export default function LivraisonDetailPage() {
                 />
                 <Button
                   onClick={handleAction}
-                  disabled={!valCode || actionLoading}
+                  disabled={!valCode || actionLoading || !isOnline}
                   className="h-14 w-14 rounded-2xl bg-primary text-white hover:bg-primary/90 shadow-xl shadow-primary/20 shrink-0"
                 >
                   {actionLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ChevronRight className="w-8 h-8" />}
                 </Button>
               </div>
+              {!isOnline && (
+                <p className="text-xs text-center text-amber-700 font-medium">
+                  {lang === "fr"
+                    ? "Hors ligne : reconnectez-vous pour valider ce code."
+                    : "Nta internet: subira ku murongo kugira wemeze iyi kode."}
+                </p>
+              )}
               <div className="bg-secondary/10 rounded-xl p-4 text-center border border-border/30">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
                   {isPickupStep
