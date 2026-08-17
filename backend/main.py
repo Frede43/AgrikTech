@@ -936,6 +936,34 @@ def get_user_transactions(user_id: int, *, db: Session) -> List[dict]:
 
 # ─────────────────────── STATS ────────────────────────────────────────────────
 
+def _compute_weekly_sales(farmer_id: int, *, db: Session) -> list:
+    """
+    Ventes complétées sur les 4 dernières semaines calendaires (celle en
+    cours + 3 précédentes), bornées lundi 00h00 -> lundi suivant 00h00.
+
+    Bug corrigé : `now - timedelta(days=now.weekday())` ne tronque PAS
+    l'heure du jour — pour la semaine en cours (i=0), ça donne littéralement
+    "maintenant" (pas "minuit ce lundi"). N'importe quelle commande créée
+    plus tôt dans la même journée se retrouvait donc exclue du bucket de la
+    semaine en cours, avec un montant à 0 au lieu du vrai total — repéré via
+    un test qui échouait uniquement les lundis (weekday() == 0, l'unique cas
+    où l'écart entre "maintenant" et "minuit" peut dépasser le délai entre
+    la création de la commande et le calcul du dashboard).
+    """
+    now = utcnow_naive().replace(hour=0, minute=0, second=0, microsecond=0)
+    weekly_sales = []
+    for i in range(3, -1, -1):
+        week_start = now - timedelta(days=now.weekday() + 7 * i)
+        week_end = week_start + timedelta(days=7)
+        amt = db.query(func.sum(models.Order.total_price)).filter(
+            models.Order.farmer_id == farmer_id,
+            models.Order.status == ORDER_STATUS_COMPLETED,
+            models.Order.created_at >= week_start,
+            models.Order.created_at < week_end,
+        ).scalar() or Decimal("0.0")
+        weekly_sales.append({"week": week_start.strftime("%Y-W%U"), "amount": float(str(amt))})
+    return weekly_sales
+
 def get_farmer_stats(farmer_id: int, *, db: Session) -> dict:
     user = db.query(models.User).filter(models.User.id == farmer_id).first()
     if not user:
@@ -954,18 +982,7 @@ def get_farmer_stats(farmer_id: int, *, db: Session) -> dict:
     ).scalar() or Decimal("0.0")
     pending_payout = Decimal(str(pending_payout_raw)) * (1 - commission_rate)
 
-    now = utcnow_naive()
-    weekly_sales = []
-    for i in range(3, -1, -1):
-        week_start = now - timedelta(days=now.weekday() + 7 * i)
-        week_end = week_start + timedelta(days=7)
-        amt = db.query(func.sum(models.Order.total_price)).filter(
-            models.Order.farmer_id == farmer_id,
-            models.Order.status == ORDER_STATUS_COMPLETED,
-            models.Order.created_at >= week_start,
-            models.Order.created_at < week_end,
-        ).scalar() or Decimal("0.0")
-        weekly_sales.append({"week": week_start.strftime("%Y-W%U"), "amount": float(str(amt))})
+    weekly_sales = _compute_weekly_sales(farmer_id, db=db)
 
     return {
         "balance": float(str(user.balance or 0)),
@@ -1000,18 +1017,7 @@ def get_farmer_dashboard(farmer_id: int, *, db: Session) -> dict:
         models.Order.status != ORDER_STATUS_COMPLETED,
     ).order_by(models.Order.created_at.desc()).limit(5).all()
 
-    now = utcnow_naive()
-    weekly_sales = []
-    for i in range(3, -1, -1):
-        week_start = now - timedelta(days=now.weekday() + 7 * i)
-        week_end = week_start + timedelta(days=7)
-        amt = db.query(func.sum(models.Order.total_price)).filter(
-            models.Order.farmer_id == farmer_id,
-            models.Order.status == ORDER_STATUS_COMPLETED,
-            models.Order.created_at >= week_start,
-            models.Order.created_at < week_end,
-        ).scalar() or Decimal("0.0")
-        weekly_sales.append({"week": week_start.strftime("%Y-W%U"), "amount": float(str(amt))})
+    weekly_sales = _compute_weekly_sales(farmer_id, db=db)
 
     return {
         "user": {"name": user.name, "province": user.province, "balance": float(str(user.balance or 0))},

@@ -538,14 +538,30 @@ def get_farmer_dashboard_stats(user_id: int, request: Request, db: Session = Dep
         models.Order.farmer_id == user_id
     ).order_by(models.Order.created_at.desc()).limit(5).all()
     
-    # Weekly Sales (last 7 days)
-    # Mock for now but ready for real grouping
-    now = datetime.now()
+    # Ventes complétées sur les 4 dernières semaines calendaires, bornées
+    # lundi 00h00 -> lundi suivant 00h00. Renvoie {week, amount} : c'est ce
+    # que components/dashboard/sales-chart.tsx lit réellement (dataKey="week"
+    # pour l'axe X, dataKey="amount" pour les barres) — l'ancien format
+    # {day, value} ne correspondait à rien dans le graphique, qui restait
+    # vide même une fois de vraies données branchées.
+    #
+    # Important : tronquer à minuit avant de soustraire des jours entiers.
+    # `datetime.now() - timedelta(days=now.weekday())` sans troncation vaut
+    # littéralement "maintenant" pour la semaine en cours un lundi — une
+    # commande créée plus tôt le même jour tombait alors hors de la fenêtre
+    # (montant à 0 au lieu du vrai total).
+    today_midnight = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     weekly_sales = []
-    for i in range(7):
-        day = (now - timedelta(days=i)).strftime("%a")
-        weekly_sales.append({"day": day, "value": 0})
-    weekly_sales.reverse()
+    for i in range(3, -1, -1):
+        week_start = today_midnight - timedelta(days=today_midnight.weekday() + 7 * i)
+        week_end = week_start + timedelta(days=7)
+        amt = db.query(func.sum(models.Order.total_price)).filter(
+            models.Order.farmer_id == user_id,
+            models.Order.status.in_(["delivered", "COMPLETED"]),
+            models.Order.created_at >= week_start,
+            models.Order.created_at < week_end,
+        ).scalar() or 0
+        weekly_sales.append({"week": week_start.strftime("%Y-W%U"), "amount": float(amt)})
 
     # Final rating calculation (already done at 308, but making it more solid)
     final_rating = round(float(avg_rating), 1) if avg_rating is not None else 4.5
