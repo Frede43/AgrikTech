@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import { apiFetch, redirectToLoginIfUnauthorized } from "@/lib/api-config";
-import { getDisplayErrorMessage, logIfNotNetworkError } from "@/lib/offline";
+import { getDisplayErrorMessage, isLikelyNetworkError, logIfNotNetworkError, useOnlineStatus } from "@/lib/offline";
 import { useRequiredSession } from "@/lib/session";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -49,6 +49,7 @@ interface FarmerStats {
 
 export default function WalletPage() {
   const { session, ready } = useRequiredSession("fermier");
+  const isOnline = useOnlineStatus();
   const [user, setUser] = useState<WalletUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [pending, setPending] = useState<number>(0);
@@ -105,7 +106,7 @@ export default function WalletPage() {
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session) return;
+    if (!session || !isOnline) return;
 
     setSubmitting(true);
     setError(null);
@@ -131,7 +132,7 @@ export default function WalletPage() {
       }
 
       logIfNotNetworkError("Wallet withdrawal error", err);
-      setError(getDisplayErrorMessage(err, text.walletWithdrawError));
+      setError(isLikelyNetworkError(err) ? text.walletWithdrawOffline : getDisplayErrorMessage(err, text.walletWithdrawError));
     } finally {
       setSubmitting(false);
     }
@@ -149,6 +150,7 @@ export default function WalletPage() {
     isAmountEntered && parsedAmount > 0 && parsedAmount < minWithdrawalAmount;
   const isTransferDisabled =
     submitting ||
+    !isOnline ||
     balance === null ||
     !phoneNumber.trim() ||
     !amount ||
@@ -367,6 +369,10 @@ export default function WalletPage() {
               )}
               {text.walletWithdrawBtn}
             </Button>
+
+            {!isOnline && (
+              <p className="text-sm text-center text-amber-700 font-medium">{text.walletWithdrawOffline}</p>
+            )}
           </form>
         </div>
 

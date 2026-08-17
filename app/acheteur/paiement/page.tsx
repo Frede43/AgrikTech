@@ -13,7 +13,7 @@ import { useRequiredSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/cart-context";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useOnlineStatus } from "@/lib/offline";
+import { getDisplayErrorMessage, isLikelyNetworkError, logIfNotNetworkError, useOnlineStatus } from "@/lib/offline";
 import { formatUserLocation, useSessionUserProfile } from "@/lib/user-profile";
 
 const paymentMethods = [
@@ -34,6 +34,7 @@ export default function PaiementPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
 
   // Pré-remplissage avec les données du profil
@@ -75,6 +76,7 @@ export default function PaiementPage() {
   const handlePay = async () => {
     if (!address || !phone || !session || !isOnline) return;
     setLoading(true);
+    setPayError(null);
     try {
       // Regrouper les articles par fermier
       const groups = items.reduce((acc, item) => {
@@ -103,8 +105,13 @@ export default function PaiementPage() {
       clearCart();
       setTimeout(() => router.push("/acheteur/commande"), 3500);
     } catch (err: any) {
-      console.error(err);
-      alert(err.message || (lang === "fr" ? "Erreur lors de la transaction." : "Ntivyashobotse kwishura. Subira rugerage."));
+      logIfNotNetworkError("Order creation error", err);
+      const fallback = lang === "fr" ? "Erreur lors de la transaction." : "Ntivyashobotse kwishura. Subira rugerage.";
+      const offlineMessage =
+        lang === "fr"
+          ? "Hors ligne : le paiement n'a pas pu être transmis. Reconnectez-vous puis réessayez."
+          : "Nta internet: ukwishura ntikwashoboye kurungikwa. Subira ku murongo hanyuma ugerageze bundi bushasha.";
+      setPayError(isLikelyNetworkError(err) ? offlineMessage : getDisplayErrorMessage(err, fallback));
     } finally {
       setLoading(false);
     }
@@ -287,6 +294,10 @@ export default function PaiementPage() {
                 ? "Hors ligne : reconnectez-vous pour valider et transmettre le paiement."
                 : "Nta internet : subira ku murongo kugira wemeze kandi wohereze ukwishura."}
             </p>
+          )}
+
+          {payError && (
+            <p className="text-sm text-center text-rose-700 font-medium">{payError}</p>
           )}
 
           <div className="bg-secondary/30 rounded-2xl p-4 flex items-start gap-3 border border-border/50">
