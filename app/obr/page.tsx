@@ -31,6 +31,42 @@ export default function ObrPortalPage() {
     }
   };
 
+  const escapeCsvField = (value: string | number) => {
+    const str = String(value);
+    return /[;"\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+  };
+
+  const handleExportCsv = () => {
+    if (!report) return;
+
+    const rows: string[][] = [
+      [lang === "fr" ? "Période" : "Igihe", report.metadata.period],
+      [lang === "fr" ? "Total ventes HT (BIF)" : "Amaguzwa yose (BIF)", String(report.metadata.total_sales_ht)],
+      [lang === "fr" ? "TVA à reverser (BIF)" : "Ikori co kwishura (BIF)", String(report.metadata.total_vat)],
+      [],
+      [
+        lang === "fr" ? "Fermier" : "Umurimyi",
+        "NIF",
+        lang === "fr" ? "Ventes HT (BIF)" : "Amaguzwa adafise ikori (BIF)",
+        lang === "fr" ? "TVA collectée (BIF)" : "Ikori cegeranijwe (BIF)",
+      ],
+      ...report.records.map((r: any) => [r.farmer_name, r.nif, String(r.sales_ht), String(r.vat_collected)]),
+    ];
+
+    // Séparateur ";" + BOM UTF-8 : Excel en locale française n'ouvre pas
+    // correctement les CSV séparés par "," (utilisé comme séparateur décimal).
+    const csvContent = "﻿" + rows.map((row) => row.map(escapeCsvField).join(";")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `rapport-tva-obr-${report.metadata.period}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <ObrLayout
       title={lang === "fr" ? "Rapport TVA" : "Icegeranyo c'ikori"}
@@ -103,7 +139,13 @@ export default function ObrPortalPage() {
                   <TableIcon className="w-5 h-5" />
                   {lang === "fr" ? "Détails par fermier" : "Ibisobanuro ku murimyi"}
                 </CardTitle>
-                <Button variant="outline" size="sm" className="gap-2 rounded-xl" title={lang === "fr" ? "Bientôt disponible" : "Vyegereje"} disabled>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 rounded-xl"
+                  onClick={handleExportCsv}
+                  disabled={report.records.length === 0}
+                >
                   <FileSpreadsheet className="w-4 h-4" />
                   {lang === "fr" ? "Exporter CSV" : "Kuramo CSV"}
                 </Button>
