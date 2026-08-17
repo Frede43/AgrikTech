@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/components/cart-context'
 import { OfflineSyncStatus } from '@/components/offline-sync-status'
 import { ConnectionStatus } from '@/components/ConnectionStatus'
+import { InstallPrompt } from '@/components/InstallPrompt'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import './globals.css'
 
@@ -37,9 +38,23 @@ export const metadata: Metadata = {
     apple: '/apple-icon.png',
   },
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'AgriConnect',
+  },
+  other: {
+    // Next.js n'émet que "mobile-web-app-capable" pour appleWebApp.capable ;
+    // Safari iOS exige spécifiquement la variante préfixée pour le mode
+    // standalone complet (barre d'adresse masquée).
+    'apple-mobile-web-app-capable': 'yes',
+  },
 }
 
 export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
   themeColor: "#2e7d32",
 }
 
@@ -58,6 +73,7 @@ export default function RootLayout({
             {children}
             <OfflineSyncStatus />
             <ConnectionStatus />
+            <InstallPrompt />
             <Analytics />
           </CartProvider>
         </LanguageProvider>

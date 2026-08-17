@@ -33,3 +33,12 @@ backend/static/uploads/
 playwright-report/
 test-results/
 tsconfig.tsbuildinfo
+
+# Fichiers générés au build par next-pwa (service worker Workbox)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+public/workbox-*.js
+public/workbox-*.js.map
+public/worker-*.js
+public/fallback-*.js
