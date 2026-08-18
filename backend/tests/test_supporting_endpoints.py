@@ -49,6 +49,9 @@ class SupportingEndpointsTests(unittest.TestCase):
         cls.schemas = importlib.import_module("backend.schemas")
         cls.main = importlib.import_module("backend.main")
         cls.main.UPLOAD_DIR = str(cls._upload_dir)
+        cls.utils = importlib.import_module("backend.utils")
+        cls.config = importlib.import_module("backend.config")
+        cls.wallet_router = importlib.import_module("backend.routers.wallet")
 
     @classmethod
     def tearDownClass(cls):
@@ -87,6 +90,30 @@ class SupportingEndpointsTests(unittest.TestCase):
             farmer_id=farmer_id,
             db=self.db,
         )
+
+    def authenticated_router_request(self, user):
+        """Session réelle persistée en base (utils.set_authenticated_session),
+        pour appeler directement une fonction de ROUTEUR réel (routers/*.py),
+        qui authentifie via utils.get_authenticated_user + PersistentSession —
+        même principe que routers/testing.py::_impersonate.
+
+        À ne pas confondre avec authenticated_request ci-dessous : celui-ci
+        crée un jeton dans le dict en mémoire main.auth_sessions, un mécanisme
+        de session parallèle propre au code historique de main.py (jamais lu
+        par utils.get_authenticated_user), donc utilisable uniquement pour
+        appeler les fonctions main.py qui s'appuient dessus — pas les routeurs.
+        """
+        from fastapi import Response as FastAPIResponse
+
+        self.utils.set_authenticated_session(FastAPIResponse(), user, self.db)
+        session = (
+            self.db.query(self.models.PersistentSession)
+            .filter(self.models.PersistentSession.user_id == user.id)
+            .order_by(self.models.PersistentSession.expires_at.desc())
+            .first()
+        )
+        assert session is not None
+        return RequestStub(cookies={self.config.SESSION_COOKIE_NAME: session.id})
 
     def authenticated_request(self, user):
         response = ResponseStub()
@@ -1368,6 +1395,81 @@ class SupportingEndpointsTests(unittest.TestCase):
         self.assertEqual(withdrawal["status"], "pending")
         self.assertIn("historique confirmé", withdrawal["message"])
         self.assertIn("sous 24h", withdrawal["note"])
+
+    def test_wallet_withdrawal_route_auto_completes_for_trusted_farmer(self):
+        # Contrairement aux tests ci-dessus (qui appellent directement la
+        # fonction main.create_wallet_withdrawal, jamais montée sur une route),
+        # celui-ci passe par backend.routers.wallet.request_withdrawal — la
+        # VRAIE fonction exécutée par POST /wallet/withdrawals en production.
+        farmer = self.create_user("+257799355501", "farmer", "Fermier Route Confiance", province="Kayanza")
+        farmer.kyc_status = "verified"
+        self.db.commit()
+        self.db.refresh(farmer)
+
+        buyer = self.create_user("+257799355502", "buyer", "Acheteur Route", province="Bujumbura")
+        driver = self.create_user("+257799355503", "driver", "Livreur Route", province="Kayanza")
+        product = self.create_product(farmer.id, province="Kayanza", price_per_kg=4000)
+        order = self.main.create_order(
+            self.schemas.OrderCreate(product_id=product.id, quantity=1),
+            buyer_id=buyer.id,
+            db=self.db,
+        )
+        self.main.pickup_order(order.id, order.pickup_qr_token, driver.id, db=self.db)
+        self.main.deliver_order(order.id, order.delivery_otp, db=self.db)
+
+        # Solde fixé à une valeur connue APRÈS la livraison (qui crédite déjà
+        # le fermier) : seul l'historique de livraison compte ici, pas le
+        # montant exact crédité par le calcul de commission.
+        self.db.refresh(farmer)
+        farmer.balance = 60000
+        self.db.commit()
+        self.db.refresh(farmer)
+
+        request = self.authenticated_router_request(farmer)
+        result = self.wallet_router.request_withdrawal(
+            self.schemas.WalletWithdrawalRequest(
+                user_id=farmer.id,  # ignoré par la route : voir son commentaire anti-usurpation
+                amount=12000,
+                channel="Lumicash",
+                phone_number=farmer.phone_number,
+            ),
+            request,
+            db=self.db,
+        )
+
+        self.assertEqual(result["status"], "completed")
+        self.assertIn("traité automatiquement", result["message"])
+        self.assertAlmostEqual(result["balance"], 48000.0)
+
+    def test_wallet_withdrawal_route_requires_kyc_and_defers_new_farmer_to_review(self):
+        farmer = self.create_user("+257799355511", "farmer", "Fermier Route KYC", province="Ngozi")
+        farmer.balance = 20000
+        self.db.commit()
+        self.db.refresh(farmer)
+
+        request = self.authenticated_router_request(farmer)
+
+        # Pas encore de KYC vérifié : la route doit refuser avant même de
+        # regarder l'historique de livraison (contrairement au doublon mort de
+        # main.py, qui ne vérifie jamais le KYC du tout).
+        with self.assertRaises(HTTPException) as kyc_error:
+            self.wallet_router.request_withdrawal(
+                self.schemas.WalletWithdrawalRequest(user_id=farmer.id, amount=12000, channel="Lumicash"),
+                request,
+                db=self.db,
+            )
+        self.assertEqual(kyc_error.exception.status_code, 403)
+
+        farmer.kyc_status = "verified"
+        self.db.commit()
+
+        result = self.wallet_router.request_withdrawal(
+            self.schemas.WalletWithdrawalRequest(user_id=farmer.id, amount=12000, channel="Lumicash"),
+            request,
+            db=self.db,
+        )
+        self.assertEqual(result["status"], "pending")
+        self.assertIn("historique confirmé", result["message"])
 
     def test_mock_mobile_money_payout_lifecycle_is_locally_testable(self):
         payout = self.main.create_mock_mobile_money_payout(
