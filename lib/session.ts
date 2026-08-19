@@ -90,8 +90,21 @@ export function useSession() {
                 const s = await fetchCurrentSession();
                 if (!cancelled) setSession(s);
             } catch (err) {
-                const cached = loadSessionSnapshot();
-                if (!cancelled) setSession(cached || null);
+                if (cancelled) return;
+
+                // Le serveur a explicitement rejeté la session (compte supprimé
+                // ou suspendu) : ne jamais retomber sur l'instantané local dans
+                // ce cas, sous peine de continuer à afficher l'utilisateur comme
+                // connecté avec des droits qui n'existent plus. Le repli sur le
+                // cache ne vaut que pour une vraie coupure réseau.
+                const status = getApiErrorStatus(err);
+                if (status === 401 || status === 403) {
+                    clearSessionSnapshot();
+                    setSession(null);
+                } else {
+                    const cached = loadSessionSnapshot();
+                    setSession(cached || null);
+                }
             } finally {
                 if (!cancelled) setReady(true);
             }
