@@ -147,6 +147,20 @@ def delete_product(product_id: int, request: Request, db: Session = Depends(get_
     ).first()
     if not product:
         raise HTTPException(status_code=404, detail="Produit non trouvé.")
+
+    # Refuser la suppression si le produit a déjà été commandé : la ligne de
+    # commande (OrderItem.product_id) doit rester traçable, et une tentative
+    # de suppression aurait de toute façon échoué en base avec une erreur 500
+    # (contrainte de clé étrangère) plutôt qu'un message clair.
+    has_order_history = db.query(models.OrderItem.id).filter(
+        models.OrderItem.product_id == product_id
+    ).first() is not None
+    if has_order_history:
+        raise HTTPException(
+            status_code=400,
+            detail="Impossible de supprimer ce produit : il a déjà été commandé. Désactivez-le plutôt.",
+        )
+
     db.delete(product)
     db.commit()
 

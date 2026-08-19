@@ -12,6 +12,11 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 
+class RequestStub:
+    def __init__(self, cookies=None):
+        self.cookies = cookies or {}
+
+
 class ProductsAdminAndDashboardEdgeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -25,6 +30,9 @@ class ProductsAdminAndDashboardEdgeTests(unittest.TestCase):
         cls.models = importlib.import_module("backend.models")
         cls.schemas = importlib.import_module("backend.schemas")
         cls.main = importlib.import_module("backend.main")
+        cls.utils = importlib.import_module("backend.utils")
+        cls.config = importlib.import_module("backend.config")
+        cls.products_router = importlib.import_module("backend.routers.products")
         cls.models.Base.metadata.create_all(bind=cls.database.engine)
 
     @classmethod
@@ -51,6 +59,24 @@ class ProductsAdminAndDashboardEdgeTests(unittest.TestCase):
             farmer_id=farmer_id,
             db=self.db,
         )
+
+    def authenticated_router_request(self, user):
+        """Session réelle persistée en base, pour appeler directement une
+        fonction de ROUTEUR réel (backend/routers/*.py), qui authentifie via
+        utils.get_authenticated_user + PersistentSession — voir le même
+        helper (et sa justification détaillée) dans
+        test_supporting_endpoints.py."""
+        from fastapi import Response as FastAPIResponse
+
+        self.utils.set_authenticated_session(FastAPIResponse(), user, self.db)
+        session = (
+            self.db.query(self.models.PersistentSession)
+            .filter(self.models.PersistentSession.user_id == user.id)
+            .order_by(self.models.PersistentSession.expires_at.desc())
+            .first()
+        )
+        assert session is not None
+        return RequestStub(cookies={self.config.SESSION_COOKIE_NAME: session.id})
 
     def test_get_product_returns_farmer_relation_and_missing_product_404(self):
         farmer = self.create_user("+257790000001", "farmer", "Fermier Produit", province="Ngozi")
@@ -129,6 +155,30 @@ class ProductsAdminAndDashboardEdgeTests(unittest.TestCase):
 
         self.main.delete_product(product.id, farmer_id=farmer.id, db=self.db)
         self.assertIsNone(self.db.query(self.models.Product).filter_by(id=product.id).first())
+
+    def test_delete_product_route_rejects_when_order_history_exists(self):
+        # Contrairement au test ci-dessus (main.delete_product, jamais monté
+        # sur une route), celui-ci appelle products_router.delete_product —
+        # la VRAIE fonction exécutée par DELETE /products/{id} en production.
+        # Avant le correctif, tenter de supprimer un produit déjà commandé
+        # levait une IntegrityError non gérée (500) au lieu d'un refus propre.
+        farmer = self.create_user("+257790000041", "farmer", "Fermier Historique", province="Ngozi")
+        buyer = self.create_user("+257790000042", "buyer", "Acheteur Historique", province="Bujumbura")
+        product = self.create_product(farmer.id, "Avocats", "fruits", "Ngozi")
+
+        self.main.create_order(
+            self.schemas.OrderCreate(product_id=product.id, quantity=1),
+            buyer_id=buyer.id,
+            db=self.db,
+        )
+
+        request = self.authenticated_router_request(farmer)
+        with self.assertRaises(HTTPException) as ctx:
+            self.products_router.delete_product(product.id, request, db=self.db)
+
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("déjà été commandé", ctx.exception.detail)
+        self.assertIsNotNone(self.db.query(self.models.Product).filter_by(id=product.id).first())
 
     def test_stock_movements_are_recorded_for_create_update_and_order(self):
         farmer = self.create_user("+257790000035", "farmer", "Fermier Stock", province="Ngozi")
