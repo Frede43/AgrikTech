@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -11,9 +12,14 @@ router = APIRouter(prefix="/messages", tags=["Messages"])
 def get_inbox(request: Request, db: Session = Depends(get_db)):
     user = utils.get_authenticated_user(request, db)
     if not user: raise HTTPException(status_code=401)
+    # Envoyés ET reçus : le front reconstruit des fils de discussion à deux
+    # sens (voir app/*/messages/page.tsx, qui regroupe par sender_id/receiver_id
+    # opposé à l'utilisateur courant) — se limiter à receiver_id rendait
+    # invisibles les messages qu'on envoie soi-même, y compris toute
+    # conversation qu'on démarre tant que l'autre partie n'a pas répondu.
     msgs = (
         db.query(models.Message)
-        .filter(models.Message.receiver_id == user.id)
+        .filter(or_(models.Message.receiver_id == user.id, models.Message.sender_id == user.id))
         .order_by(models.Message.created_at.desc())
         .all()
     )
