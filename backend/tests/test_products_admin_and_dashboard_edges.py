@@ -1,11 +1,13 @@
+import asyncio
 import importlib
+import io
 import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
@@ -33,6 +35,9 @@ class ProductsAdminAndDashboardEdgeTests(unittest.TestCase):
         cls.utils = importlib.import_module("backend.utils")
         cls.config = importlib.import_module("backend.config")
         cls.products_router = importlib.import_module("backend.routers.products")
+        cls._upload_dir = Path(cls._tmpdir.name) / "uploads"
+        cls._upload_dir.mkdir(exist_ok=True)
+        cls.products_router.UPLOAD_DIR = str(cls._upload_dir)
         cls.models.Base.metadata.create_all(bind=cls.database.engine)
 
     @classmethod
@@ -179,6 +184,38 @@ class ProductsAdminAndDashboardEdgeTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 400)
         self.assertIn("déjà été commandé", ctx.exception.detail)
         self.assertIsNotNone(self.db.query(self.models.Product).filter_by(id=product.id).first())
+
+    def test_uploaded_image_url_is_returned_by_get_product_and_get_products(self):
+        # Régression : schemas.Product (hérite de ProductBase) ne déclarait
+        # jamais image_url, donc l'API ne renvoyait JAMAIS ce champ, même
+        # avec une valeur correcte en base après upload — les images de
+        # produit n'étaient affichables nulle part (ni fermier ni acheteur).
+        farmer = self.create_user("+257790000051", "farmer", "Fermier Image", province="Ngozi")
+        product = self.create_product(farmer.id, "Ananas", "fruits", "Ngozi")
+        self.assertIsNone(product.image_url)
+
+        upload_result = asyncio.run(
+            self.products_router.upload_product_image(
+                product.id,
+                UploadFile(filename="photo.jpg", file=io.BytesIO(b"fake-image-bytes")),
+                db=self.db,
+            )
+        )
+        self.assertTrue(upload_result["image_url"].startswith("/static/uploads/prod_"))
+
+        # Appeler la fonction du routeur directement ne suffit pas à couvrir
+        # la régression : le bug est dans schemas.Product, la couche de
+        # sérialisation que FastAPI applique via response_model= sur la
+        # vraie route HTTP — jamais exercée par un simple appel Python à
+        # l'objet ORM. On reproduit donc explicitement cette sérialisation.
+        fetched_one = self.products_router.get_product(product.id, db=self.db)
+        serialized_one = self.schemas.Product.model_validate(fetched_one)
+        self.assertEqual(serialized_one.image_url, upload_result["image_url"])
+
+        fetched_list = self.products_router.get_products(farmer_id=farmer.id, db=self.db)
+        self.assertEqual(len(fetched_list), 1)
+        serialized_list = [self.schemas.Product.model_validate(p) for p in fetched_list]
+        self.assertEqual(serialized_list[0].image_url, upload_result["image_url"])
 
     def test_stock_movements_are_recorded_for_create_update_and_order(self):
         farmer = self.create_user("+257790000035", "farmer", "Fermier Stock", province="Ngozi")

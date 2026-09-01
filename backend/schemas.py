@@ -326,6 +326,11 @@ class ProductBase(BaseModel):
     lab_report_url: Optional[str] = None
     farmer_id: Optional[int] = None
     cooperative_id: Optional[int] = None
+    # Jamais déclaré ici avant : le schéma Product (hérite de ProductBase)
+    # ne renvoyait donc JAMAIS image_url dans aucune réponse API, malgré une
+    # valeur correcte en base après upload — les images de produit n'étaient
+    # affichables nulle part, ni côté fermier ni côté acheteur.
+    image_url: Optional[str] = None
 
 class ProductCreate(ProductBase):
     pass

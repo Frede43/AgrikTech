@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { formatBIF } from "@/lib/currency";
 import { cn } from "@/lib/utils";
-import { apiFetch, API_BASE_URL } from "@/lib/api-config";
+import { apiFetch, buildImageUrl } from "@/lib/api-config";
 import { useLanguage } from "@/lib/LanguageContext";
 import { logIfNotNetworkError } from "@/lib/offline";
 
@@ -170,9 +170,9 @@ export default function RecherchePage() {
                 className="flex gap-4 bg-card border border-border rounded-2xl p-4 hover:shadow-lg hover:border-primary/20 transition-all group shadow-sm"
               >
                 <div className="w-24 h-24 rounded-2xl bg-secondary flex items-center justify-center text-4xl shrink-0 overflow-hidden relative shadow-inner">
-                  {product.image_url ? (
+                  {buildImageUrl(product.image_url) ? (
                     <img
-                      src={`${API_BASE_URL}${product.image_url}`}
+                      src={buildImageUrl(product.image_url)!}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />

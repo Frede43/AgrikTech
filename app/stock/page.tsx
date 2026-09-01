@@ -15,6 +15,7 @@ import {
   QrCode,
   Printer,
   Download,
+  Package,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
@@ -48,7 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatBIF } from "@/lib/currency";
-import { apiFetch } from "@/lib/api-config";
+import { apiFetch, buildImageUrl } from "@/lib/api-config";
 import { getDisplayErrorMessage, logIfNotNetworkError } from "@/lib/offline";
 import { useRequiredSession } from "@/lib/session";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -441,19 +442,30 @@ export default function StockPage() {
           const stockPercent = Math.min(100, Math.max(0, (product.quantity_kg / denominator) * 100));
           const StatusIcon = status.icon;
 
+          const imageUrl = buildImageUrl(product.image_url);
+
           return (
             <div key={product.id} className="bg-card rounded-2xl border border-border p-4 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-foreground truncate">{product.name}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5">
-                    {categoryLabels[product.category] || product.category}
-                  </p>
+              <div className="flex items-start gap-3">
+                <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center shrink-0 overflow-hidden">
+                  {imageUrl ? (
+                    <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Package className="w-6 h-6 text-muted-foreground/40" />
+                  )}
                 </div>
-                <Badge className={`shrink-0 border text-[10px] font-bold uppercase px-2 py-0.5 shadow-none ${status.color}`}>
-                  <StatusIcon className="w-3 h-3 mr-1" />
-                  {status.label}
-                </Badge>
+                <div className="flex items-start justify-between gap-2 flex-1 min-w-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground truncate">{product.name}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5">
+                      {categoryLabels[product.category] || product.category}
+                    </p>
+                  </div>
+                  <Badge className={`shrink-0 border text-[10px] font-bold uppercase px-2 py-0.5 shadow-none ${status.color}`}>
+                    <StatusIcon className="w-3 h-3 mr-1" />
+                    {status.label}
+                  </Badge>
+                </div>
               </div>
 
               <div>
