@@ -1,0 +1,11 @@
+[build]
+  # `next build --webpack` (pas `next build` seul) : @ducanh2912/next-pwa
+  # dépend d'un plugin webpack pour générer le service worker (public/sw.js).
+  # Next 16 utilise Turbopack par défaut pour `next build`, sous lequel ce
+  # plugin n'est jamais invoqué — voir package.json et le commit qui a
+  # découvert ce piège sur Vercel (le même script fonctionne ici tel quel).
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
