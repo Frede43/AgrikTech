@@ -101,6 +101,14 @@ MOCK_MOBILE_MONEY_TAX_RATE = Decimal("0.18")
 
 # CORS
 ORS_API_KEY = os.getenv("ORS_API_KEY", "")
+
+# Stockage des fichiers uploadés (images produit, documents KYC). Sans ces
+# clés, backend/services/file_storage_service.py se rabat sur le disque
+# local — à réserver au développement : le disque d'un service Render
+# gratuit est réinitialisé à chaque redéploiement (voir sa docstring).
+IMAGEKIT_PUBLIC_KEY = os.getenv("IMAGEKIT_PUBLIC_KEY", "")
+IMAGEKIT_PRIVATE_KEY = os.getenv("IMAGEKIT_PRIVATE_KEY", "")
+IMAGEKIT_URL_ENDPOINT = os.getenv("IMAGEKIT_URL_ENDPOINT", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 # Security

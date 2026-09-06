@@ -56,6 +56,15 @@ services:
         sync: false
       - key: ORS_API_KEY
         sync: false
+      # Stockage persistant des images produit et documents KYC (le disque
+      # local de ce service est réinitialisé à chaque redéploiement — voir
+      # backend/services/file_storage_service.py).
+      - key: IMAGEKIT_PUBLIC_KEY
+        sync: false
+      - key: IMAGEKIT_PRIVATE_KEY
+        sync: false
+      - key: IMAGEKIT_URL_ENDPOINT
+        sync: false
 
 databases:
   - name: agriconnect-db

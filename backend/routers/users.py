@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
-import os, uuid
+import os
 
 import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
 from backend.database import get_db
+from backend.services import file_storage_service
 from typing import cast
 from decimal import Decimal
 
@@ -142,13 +143,16 @@ async def upload_kyc_document(request: Request, file: UploadFile = File(...), db
     if len(contents) > KYC_MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="Fichier trop volumineux (5 Mo maximum).")
 
-    os.makedirs(KYC_UPLOAD_DIR, exist_ok=True)
-    filename = f"kyc_{current_user.id}_{uuid.uuid4().hex[:8]}.{extension}"
-    file_path = os.path.join(KYC_UPLOAD_DIR, filename)
-    with open(file_path, "wb") as buffer:
-        buffer.write(contents)
+    document_url = file_storage_service.store_uploaded_file(
+        contents,
+        original_name or f"piece.{extension}",
+        prefix=f"kyc_{current_user.id}",
+        folder="/kyc/",
+        local_dir=KYC_UPLOAD_DIR,
+        local_url_prefix="/static/uploads/kyc",
+    )
 
-    return {"document_url": f"/static/uploads/kyc/{filename}"}
+    return {"document_url": document_url}
 
 @router.post("/kyc/submit", response_model=schemas.User)
 def submit_kyc(payload: schemas.UserKycSubmit, request: Request, db: Session = Depends(get_db)):
