@@ -41,6 +41,10 @@ function LoginContent() {
             invalidOtp: "Code invalide ou expiré.",
             offlineError: "Hors ligne : reconnectez-vous pour recevoir le code.",
             offlineErrorOtp: "Hors ligne : reconnectez-vous pour vérifier le code.",
+            roleMismatchTitle: "Ce n'est pas le bon espace",
+            roleMismatchBody: "Ce numéro est associé à un compte {actual}, pas à un compte {expected}. Continuez vers votre espace {actual}, ou changez de compte.",
+            roleMismatchContinue: "Continuer vers mon espace {actual}",
+            roleMismatchSwitch: "Ce n'est pas moi, changer de compte",
             switchLanguage: "Kirundi",
             chooseRoleTitle: "Choisissez votre espace de connexion",
             chooseRoleSubtitle: "Sélectionnez votre rôle pour accéder au bon parcours de connexion.",
@@ -53,6 +57,10 @@ function LoginContent() {
             invalidOtp: "Kode siyo canke yarengeje igihe.",
             offlineError: "Nta internet: subira ku murongo kugira uronke kode.",
             offlineErrorOtp: "Nta internet: subira ku murongo kugira urabe kode.",
+            roleMismatchTitle: "Si ho ahabereye",
+            roleMismatchBody: "Iyi nomero ifitanye isano na konti y'{actual}, ntabwo ari iy'{expected}. Injira mu kibanza c'{actual}, canke uhindure konti.",
+            roleMismatchContinue: "Injira mu kibanza c'{actual}",
+            roleMismatchSwitch: "Si jewe, hindura konti",
             switchLanguage: "Igifaransa",
             chooseRoleTitle: "Hitamwo aho winjirira",
             chooseRoleSubtitle: "Hitamwo uruhara rwawe kugira winjire mu nzira ibereye.",
@@ -66,6 +74,9 @@ function LoginContent() {
     const [otp, setOtp] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    // Rôle réel du compte quand il diffère de celui de la page de connexion
+    // utilisée (ex: un fermier qui entre son numéro sur /connexion?role=acheteur).
+    const [roleMismatch, setRoleMismatch] = useState<string | null>(null);
 
     const signupPath = `${getSignupPath(role)}&phone=${encodeURIComponent(phone)}`;
     const roleOptions = [
@@ -185,6 +196,7 @@ function LoginContent() {
         if (phone.length < 8 || !isOnline) return;
         setLoading(true);
         setError("");
+        setRoleMismatch(null);
         try {
             const phoneNumber = `+257${phone}`;
             await apiFetch(`/auth/request-otp?phone_number=${encodeURIComponent(phoneNumber)}`, {
@@ -214,6 +226,10 @@ function LoginContent() {
             const directSession = parseAppSession(verification);
             if (directSession) {
                 persistSessionSnapshot(directSession);
+                if (directSession.role !== role) {
+                    setRoleMismatch(directSession.role);
+                    return;
+                }
                 router.push(getRoleHomePath(directSession.role));
                 router.refresh();
                 return;
@@ -226,6 +242,14 @@ function LoginContent() {
 
             const session = await fetchCurrentSession();
             persistSessionSnapshot(session);
+            // Le code OTP était valide, mais ce compte est enregistré sous un
+            // autre rôle que celui de cette page de connexion (ex: un fermier
+            // qui utilise /connexion?role=acheteur) : on le signale clairement
+            // plutôt que de le rediriger silencieusement vers son vrai espace.
+            if (session.role !== role) {
+                setRoleMismatch(session.role);
+                return;
+            }
             router.push(getRoleHomePath(session.role));
             router.refresh();
         } catch (err: any) {
@@ -257,7 +281,39 @@ function LoginContent() {
                 </button>
             </div>
 
-            {step === "phone" ? (
+            {roleMismatch ? (
+                <div className="flex-1 flex flex-col gap-8">
+                    <div className="space-y-2">
+                        <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center mb-4">
+                            <Shield className="w-6 h-6 text-destructive" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-foreground">{copy.roleMismatchTitle}</h1>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            {copy.roleMismatchBody
+                                .replaceAll("{actual}", getRoleLabel(roleMismatch, lang))
+                                .replaceAll("{expected}", getRoleLabel(role, lang))}
+                        </p>
+                    </div>
+
+                    <div className="space-y-3">
+                        <Button
+                            onClick={() => {
+                                router.push(getRoleHomePath(roleMismatch));
+                                router.refresh();
+                            }}
+                            className="w-full h-12 font-semibold"
+                        >
+                            {copy.roleMismatchContinue.replaceAll("{actual}", getRoleLabel(roleMismatch, lang))}
+                        </Button>
+                        <Link
+                            href="/deconnexion"
+                            className="block w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+                        >
+                            {copy.roleMismatchSwitch}
+                        </Link>
+                    </div>
+                </div>
+            ) : step === "phone" ? (
                 <div className="flex-1 flex flex-col gap-8">
                     <div className="space-y-2">
                         <h1 className="text-2xl font-bold text-foreground text-balance">
