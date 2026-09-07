@@ -38,6 +38,10 @@ function SignupContent() {
             invalidOtp: "Code invalide ou expiré.",
             offlineError: "Hors ligne : reconnectez-vous pour recevoir le code.",
             offlineErrorOtp: "Hors ligne : reconnectez-vous pour vérifier le code.",
+            roleMismatchTitle: "Ce numéro a déjà un compte",
+            roleMismatchBody: "Ce numéro est déjà enregistré comme compte {actual}, pas {expected}. Continuez vers votre espace {actual}, ou changez de numéro.",
+            roleMismatchContinue: "Continuer vers mon espace {actual}",
+            roleMismatchSwitch: "Ce n'est pas moi, changer de compte",
             restrictedTitle: "Accès restreint",
             backHome: "Retour à l'accueil",
             switchLanguage: "Kirundi",
@@ -52,6 +56,10 @@ function SignupContent() {
             invalidOtp: "Kode siyo canke yarengeje igihe.",
             offlineError: "Nta internet: subira ku murongo kugira uronke kode.",
             offlineErrorOtp: "Nta internet: subira ku murongo kugira urabe kode.",
+            roleMismatchTitle: "Iyi nomero isanzwe ifise konti",
+            roleMismatchBody: "Iyi nomero isanzwe yanditswe nka konti y'{actual}, ntabwo ari iy'{expected}. Injira mu kibanza c'{actual}, canke uhindure inomero.",
+            roleMismatchContinue: "Injira mu kibanza c'{actual}",
+            roleMismatchSwitch: "Si jewe, hindura konti",
             restrictedTitle: "Ntivyemewe",
             backHome: "Subira ku ntango",
             switchLanguage: "Igifaransa",
@@ -67,6 +75,9 @@ function SignupContent() {
     const [otp, setOtp] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    // Rôle réel du compte quand ce numéro est déjà enregistré sous un autre
+    // rôle que celui de la page d'inscription utilisée.
+    const [roleMismatch, setRoleMismatch] = useState<string | null>(null);
     const roleOptions = [
         { role: "acheteur", label: getRoleLabel("acheteur", lang), description: copy.buyerDescription },
         { role: "fermier", label: getRoleLabel("fermier", lang), description: copy.farmerDescription },
@@ -134,6 +145,7 @@ function SignupContent() {
         if (phone.length < 8 || !isOnline) return;
         setLoading(true);
         setError("");
+        setRoleMismatch(null);
         try {
             const phoneNumber = `+257${phone}`;
             await apiFetch(`/auth/request-otp?phone_number=${encodeURIComponent(phoneNumber)}`, {
@@ -163,6 +175,10 @@ function SignupContent() {
             const directSession = parseAppSession(verification);
             if (directSession) {
                 persistSessionSnapshot(directSession);
+                if (directSession.role !== role) {
+                    setRoleMismatch(directSession.role);
+                    return;
+                }
                 router.push(getRoleHomePath(directSession.role));
                 router.refresh();
                 return;
@@ -176,7 +192,17 @@ function SignupContent() {
             if (verification.registered) {
                 const session = await fetchCurrentSession();
                 persistSessionSnapshot(session);
-                router.push(getRoleHomePath(session.role || verification.role || role));
+                const actualRole = session.role || verification.role || role;
+                // Ce numéro est déjà enregistré, mais sous un autre rôle que
+                // celui de cette page d'inscription (ex: quelqu'un qui a déjà
+                // un compte fermier essaie de "s'inscrire" comme acheteur avec
+                // le même numéro) : on le signale plutôt que de le rediriger
+                // silencieusement vers son compte existant.
+                if (actualRole !== role) {
+                    setRoleMismatch(actualRole);
+                    return;
+                }
+                router.push(getRoleHomePath(actualRole));
                 router.refresh();
                 return;
             }
@@ -251,7 +277,39 @@ function SignupContent() {
                 </button>
             </div>
 
-            {step === "phone" ? (
+            {roleMismatch ? (
+                <div className="flex-1 flex flex-col gap-8">
+                    <div className="space-y-2">
+                        <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center mb-4">
+                            <Shield className="w-6 h-6 text-destructive" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-foreground">{copy.roleMismatchTitle}</h1>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            {copy.roleMismatchBody
+                                .replaceAll("{actual}", getRoleLabel(roleMismatch, lang))
+                                .replaceAll("{expected}", getRoleLabel(role, lang))}
+                        </p>
+                    </div>
+
+                    <div className="space-y-3">
+                        <Button
+                            onClick={() => {
+                                router.push(getRoleHomePath(roleMismatch));
+                                router.refresh();
+                            }}
+                            className="w-full h-12 font-semibold"
+                        >
+                            {copy.roleMismatchContinue.replaceAll("{actual}", getRoleLabel(roleMismatch, lang))}
+                        </Button>
+                        <Link
+                            href="/deconnexion"
+                            className="block w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+                        >
+                            {copy.roleMismatchSwitch}
+                        </Link>
+                    </div>
+                </div>
+            ) : step === "phone" ? (
                 <div className="flex-1 flex flex-col gap-8">
                     <div className="space-y-2">
                         <h1 className="text-2xl font-bold text-foreground text-balance">
