@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Inter, DM_Sans } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/components/cart-context'
 import { OfflineSyncStatus } from '@/components/offline-sync-status'
 import { ConnectionStatus } from '@/components/ConnectionStatus'
@@ -74,7 +73,6 @@ export default function RootLayout({
             <OfflineSyncStatus />
             <ConnectionStatus />
             <InstallPrompt />
-            <Analytics />
           </CartProvider>
         </LanguageProvider>
       </body>
