@@ -10,7 +10,7 @@ import { BuyerLayout } from "@/components/buyer/buyer-layout";
 import { formatBIF } from "@/lib/currency";
 import { useCart } from "@/components/cart-context";
 import { useLanguage } from "@/lib/LanguageContext";
-import { apiFetch, API_BASE_URL } from "@/lib/api-config";
+import { apiFetch, buildImageUrl } from "@/lib/api-config";
 import { logIfNotNetworkError } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
@@ -114,9 +114,9 @@ export default function ProductDetailPage() {
       <div className="max-w-md mx-auto px-4 py-6 space-y-6 pb-28">
         {/* Product image */}
         <div className="relative h-64 bg-secondary flex items-center justify-center text-7xl rounded-3xl overflow-hidden mx-0 border border-border shadow-sm group">
-          {product.image_url ? (
+          {buildImageUrl(product.image_url) ? (
             <img
-              src={`${API_BASE_URL}${product.image_url}`}
+              src={buildImageUrl(product.image_url)!}
               alt={product.name}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
