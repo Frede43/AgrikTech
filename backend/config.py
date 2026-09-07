@@ -110,6 +110,11 @@ IMAGEKIT_PUBLIC_KEY = os.getenv("IMAGEKIT_PUBLIC_KEY", "")
 IMAGEKIT_PRIVATE_KEY = os.getenv("IMAGEKIT_PRIVATE_KEY", "")
 IMAGEKIT_URL_ENDPOINT = os.getenv("IMAGEKIT_URL_ENDPOINT", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# CORS : FRONTEND_URL accepte une liste d'origines séparées par des virgules
+# (ex: "https://techagriapp.netlify.app,https://agrik-tech-blond.vercel.app")
+# — utile en particulier pendant une migration d'hébergeur, le temps que
+# l'ancien domaine reste actif en parallèle du nouveau.
+FRONTEND_URLS = [origin.strip() for origin in FRONTEND_URL.split(",") if origin.strip()]
 
 # Security
 _DEFAULT_SECRET_KEY = "dev-secret-key-agriconnect-burundi-2026"
