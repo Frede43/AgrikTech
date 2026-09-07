@@ -476,6 +476,12 @@ class AdminStats(BaseModel):
     active_orders: int
     total_payouts: Decimal
     commission_rate: Decimal = Decimal("0.05")
+    total_commission_estimated: Decimal = Decimal("0.0")
+    commission_current_period: Decimal = Decimal("0.0")
+    conversion_rate: float = 0.0
+    cancellation_rate: float = 0.0
+    cancelled_orders_total: int = 0
+    cancelled_orders_current_period: int = 0
     payout_beneficiaries: int = 0
     payout_releases: int = 0
     kpi_growth: dict = {}
