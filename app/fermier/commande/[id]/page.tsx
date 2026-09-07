@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Package, QrCode, CheckCircle, Clock, MapPin, Phone, Loader2 } from "lucide-react";
+import { ArrowLeft, Package, QrCode, CheckCircle, Clock, MapPin, Phone, Loader2, MessageSquare } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ interface FarmerOrderDetail {
   id: number;
   orderId: string;
   status: string;
-  buyer: { name: string; address: string; phone: string };
+  buyer: { id: number | null; name: string; address: string; phone: string };
   items: { name: string; qty: number; unit: string }[];
   totalWeight: string;
   pickup_qr: string;
@@ -153,12 +154,29 @@ export default function FarmerOrderDetailPage() {
         {/* Buyer Info (Destination) */}
         <div className="bg-card border border-border rounded-3xl p-6 shadow-sm space-y-4">
           <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Destination du colis</h2>
-          <div className="flex items-start gap-3">
-            <MapPin className="w-4 h-4 text-primary shrink-0 mt-1" />
-            <div className="space-y-1">
-              <p className="text-sm font-black text-foreground">{order.buyer.name}</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">{order.buyer.address}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <MapPin className="w-4 h-4 text-primary shrink-0 mt-1" />
+              <div className="space-y-1">
+                <p className="text-sm font-black text-foreground">{order.buyer.name}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{order.buyer.address}</p>
+              </div>
             </div>
+            {order.buyer.id != null && (
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="rounded-xl gap-2 font-bold shrink-0"
+              >
+                <Link
+                  href={`/fermier/messages?with=${order.buyer.id}&name=${encodeURIComponent(order.buyer.name)}`}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Contacter l'acheteur
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>

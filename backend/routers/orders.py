@@ -264,6 +264,7 @@ def get_buyer_orders(buyer_id: int, db: Session = Depends(get_db)):
             "status": utils.serialize_order_status(str(o.status)),
             "placedAt": o.created_at.strftime("%d/%m/%Y %Hh%M") if o.created_at is not None else "—",
             "farmer": farmer_name,
+            "farmer_id": o.farmer_id,
             "driver": driver_info,
             "items": items_data,
             "total": float(cast(Decimal, o.total_price)) if o.total_price is not None else 0.0,
@@ -332,12 +333,14 @@ def get_order_detail(order_id: int, request: Request, db: Session = Depends(get_
         "orderId": utils.format_order_reference(cast(int, order.id)),
         "status": cast(str, order.status).lower(),
         "farmer": {
+            "id": farmer.id if farmer else None,
             "name": str(farmer.name) if farmer and farmer.name else "Fermier Inconnu",
             "address": str(farmer.province) if farmer and farmer.province else "Burundi",
             "phone": str(farmer.phone_number) if farmer and farmer.phone_number else "",
             "coordinates": f"{farmer.latitude},{farmer.longitude}" if farmer and farmer.latitude is not None else "0,0"
         },
         "buyer": {
+            "id": buyer.id if buyer else None,
             "name": str(buyer.name) if buyer and buyer.name else "Acheteur Inconnu",
             "address": str(buyer.address or buyer.province or "Burundi"),
             "phone": str(buyer.phone_number) if buyer and buyer.phone_number else "",

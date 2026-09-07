@@ -1,26 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Send, User, Search } from "lucide-react";
+import { MessageSquare, Send, User, Search, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-config";
 import { useRequiredSession } from "@/lib/session";
 import { useLanguage } from "@/lib/LanguageContext";
 import { cn } from "@/lib/utils";
 import { logIfNotNetworkError, useOnlineStatus } from "@/lib/offline";
 
-export default function BuyerMessagesPage() {
+function BuyerMessagesContent() {
   const { session } = useRequiredSession("acheteur");
   const { lang } = useLanguage();
   const isOnline = useOnlineStatus();
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeChat, setActiveChat] = useState<number | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [sendError, setSendError] = useState(false);
+
+  // Un bouton "Contacter" sur les commandes peut nous envoyer ici avec
+  // ?with=<userId>&name=<nom> pour ouvrir (ou démarrer) directement une
+  // conversation avec ce contact, même s'il n'y a encore aucun message.
+  const withParam = searchParams?.get("with");
+  const nameParam = searchParams?.get("name");
+  const initialContactId = withParam ? Number(withParam) : null;
 
   useEffect(() => {
     if (session) {
@@ -29,6 +38,26 @@ export default function BuyerMessagesPage() {
         .finally(() => setLoading(false));
     }
   }, [session]);
+
+  useEffect(() => {
+    if (initialContactId) {
+      setActiveChat(initialContactId);
+    }
+  }, [initialContactId]);
+
+  const contactNames = useMemo(() => {
+    const map: Record<number, string> = {};
+    if (initialContactId && nameParam) {
+      map[initialContactId] = nameParam;
+    }
+    return map;
+  }, [initialContactId, nameParam]);
+
+  const conversationIds = useMemo(() => {
+    const ids = new Set<number>(messages.map((m) => (m.sender_id === session?.userId ? m.receiver_id : m.sender_id)));
+    if (initialContactId) ids.add(initialContactId);
+    return Array.from(ids);
+  }, [messages, session, initialContactId]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,28 +95,33 @@ export default function BuyerMessagesPage() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {messages.length === 0 ? (
+            {conversationIds.length === 0 ? (
               <p className="text-center py-10 text-sm text-muted-foreground">Aucune conversation.</p>
             ) : (
               <div className="divide-y divide-sidebar-border">
-                {Array.from(new Set(messages.map(m => m.sender_id === session?.userId ? m.receiver_id : m.sender_id))).map((uid: any) => (
-                  <button
-                    key={uid}
-                    onClick={() => setActiveChat(uid)}
-                    className={cn(
-                      "w-full p-4 flex items-center gap-3 hover:bg-accent/50 transition-colors text-left",
-                      activeChat === uid && "bg-accent"
-                    )}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      <User className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">Fermier #{uid}</p>
-                      <p className="text-xs text-muted-foreground truncate">Dernier message...</p>
-                    </div>
-                  </button>
-                ))}
+                {conversationIds.map((uid: any) => {
+                  const hasMessages = messages.some((m) => m.sender_id === uid || m.receiver_id === uid);
+                  return (
+                    <button
+                      key={uid}
+                      onClick={() => setActiveChat(uid)}
+                      className={cn(
+                        "w-full p-4 flex items-center gap-3 hover:bg-accent/50 transition-colors text-left",
+                        activeChat === uid && "bg-accent"
+                      )}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm truncate">{contactNames[uid] || `Fermier #${uid}`}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {hasMessages ? "Dernier message..." : (lang === "fr" ? "Nouvelle conversation" : "Ikiganiro gishasha")}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -101,7 +135,7 @@ export default function BuyerMessagesPage() {
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                   <User className="w-4 h-4" />
                 </div>
-                <h3 className="font-bold text-sm">Fermier #{activeChat}</h3>
+                <h3 className="font-bold text-sm">{contactNames[activeChat] || `Fermier #${activeChat}`}</h3>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages
@@ -157,5 +191,17 @@ export default function BuyerMessagesPage() {
         </div>
       </Card>
     </DashboardLayout>
+  );
+}
+
+export default function BuyerMessagesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    }>
+      <BuyerMessagesContent />
+    </Suspense>
   );
 }

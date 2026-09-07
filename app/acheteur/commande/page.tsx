@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Phone, CheckCircle, Circle, MapPin, Clock, Package, Truck, Home, QrCode, Loader2, AlertTriangle } from "lucide-react";
+import { Phone, CheckCircle, Circle, MapPin, Clock, Package, Truck, Home, QrCode, Loader2, AlertTriangle, MessageSquare } from "lucide-react";
 import { BuyerLayout } from "@/components/buyer/buyer-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ interface BuyerOrder {
   status: string;
   placedAt: string;
   farmer: string;
+  farmer_id: number | null;
   driver: { name: string; phone: string | null } | null;
   items: BuyerOrderItem[];
   total: number;
@@ -417,6 +418,17 @@ export default function CommandePage() {
               <p className="text-sm font-black text-foreground leading-tight truncate">{order.farmer}</p>
             </div>
           </div>
+
+          {order.farmer_id != null && (
+            <div className="p-4">
+              <Button asChild variant="outline" className="w-full h-11 rounded-xl font-bold gap-2">
+                <Link href={`/acheteur/messages?with=${order.farmer_id}&name=${encodeURIComponent(order.farmer)}`}>
+                  <MessageSquare className="w-4 h-4" />
+                  {lang === "fr" ? "Contacter le fermier" : "Vugana n'umurimyi"}
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Order details */}
