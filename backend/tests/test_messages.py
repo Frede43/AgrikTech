@@ -110,6 +110,24 @@ class MessagesRouterTests(unittest.TestCase):
             {"Bonjour, produit dispo ?", "Oui, encore 20kg."},
         )
 
+    def test_inbox_resolves_sender_and_receiver_names(self):
+        # Régression : la messagerie affichait "Fermier #12" / "Acheteur #12"
+        # au lieu d'un vrai nom faute de résolution côté serveur.
+        buyer = self.create_user("+257790500006", "buyer", "Alice Acheteuse", province="Bujumbura")
+        farmer = self.create_user("+257790500007", "farmer", "Bob Fermier", province="Ngozi")
+        buyer_request = self.authenticated_router_request(buyer)
+
+        self.messages_router.send_message(
+            self.schemas.MessageCreate(receiver_id=farmer.id, content="Bonjour"),
+            buyer_request,
+            db=self.db,
+        )
+
+        inbox = self.messages_router.get_inbox(buyer_request, db=self.db)
+        self.assertEqual(len(inbox), 1)
+        self.assertEqual(inbox[0].sender_name, "Alice Acheteuse")
+        self.assertEqual(inbox[0].receiver_name, "Bob Fermier")
+
     def test_send_message_rejects_unknown_receiver(self):
         buyer = self.create_user("+257790500003", "buyer", "Acheteur Inconnu", province="Bujumbura")
         buyer_request = self.authenticated_router_request(buyer)

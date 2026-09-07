@@ -529,6 +529,10 @@ class Message(MessageBase):
     sender_id: int
     read_at: Optional[datetime] = None
     created_at: datetime
+    # Noms résolus côté serveur pour que la messagerie affiche "Jean Nkurunziza"
+    # au lieu de "Fermier #12" / "Acheteur #12" (voir routers/messages.py::get_inbox).
+    sender_name: Optional[str] = None
+    receiver_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 class EquipmentBase(BaseModel):

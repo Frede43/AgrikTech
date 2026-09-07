@@ -23,6 +23,19 @@ def get_inbox(request: Request, db: Session = Depends(get_db)):
         .order_by(models.Message.created_at.desc())
         .all()
     )
+
+    # Le frontend affichait "Fermier #12" / "Acheteur #12" faute de nom —
+    # on résout les noms ici en une seule requête plutôt que d'exposer un
+    # sender_id/receiver_id brut que le client ne peut pas traduire lui-même.
+    user_ids = {m.sender_id for m in msgs} | {m.receiver_id for m in msgs}
+    names = {}
+    if user_ids:
+        rows = db.query(models.User.id, models.User.name).filter(models.User.id.in_(user_ids)).all()
+        names = {row[0]: row[1] for row in rows}
+    for m in msgs:
+        m.sender_name = names.get(m.sender_id)
+        m.receiver_name = names.get(m.receiver_id)
+
     return msgs
 
 @router.post("/", response_model=schemas.Message)

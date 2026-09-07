@@ -47,11 +47,22 @@ function FarmerMessagesContent() {
 
   const contactNames = useMemo(() => {
     const map: Record<number, string> = {};
+    // D'abord le nom transmis par le bouton "Contacter" (utile tant qu'aucun
+    // message n'a encore été échangé avec ce contact).
     if (initialContactId && nameParam) {
       map[initialContactId] = nameParam;
     }
+    // Puis les noms résolus côté serveur (voir routers/messages.py::get_inbox),
+    // plus fiables dès qu'au moins un message existe.
+    for (const m of messages) {
+      if (m.sender_id === session?.userId && m.receiver_name) {
+        map[m.receiver_id] = m.receiver_name;
+      } else if (m.receiver_id === session?.userId && m.sender_name) {
+        map[m.sender_id] = m.sender_name;
+      }
+    }
     return map;
-  }, [initialContactId, nameParam]);
+  }, [initialContactId, nameParam, messages, session]);
 
   const conversationIds = useMemo(() => {
     const ids = new Set<number>(messages.map((m) => (m.sender_id === session?.userId ? m.receiver_id : m.sender_id)));
