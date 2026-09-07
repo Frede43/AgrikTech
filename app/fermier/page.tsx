@@ -102,7 +102,7 @@ export default function DashboardPage() {
         {/* Right col — 1/3 */}
         <div className="space-y-6">
           <WalletCard balance={data.user.balance} pending={0} />
-          <WeatherMini />
+          <WeatherMini province={data.user.province} />
         </div>
       </div>
 

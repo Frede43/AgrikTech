@@ -57,16 +57,25 @@ function WeatherIcon({ icon, className }: { icon: string; className?: string }) 
   return <Sun className={className} />;
 }
 
-export function WeatherMini() {
+interface WeatherMiniProps {
+  // Sans cette prop, le backend affiche systématiquement la météo de
+  // Bujumbura par défaut (voir backend/routers/stats.py) — peu utile pour
+  // un fermier situé ailleurs, alors que c'est justement l'intérêt de ces
+  // conseils agricoles (irrigation, récolte...).
+  province?: string;
+}
+
+export function WeatherMini({ province }: WeatherMiniProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [tips, setTips] = useState<AgriTip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const query = province ? `?province=${encodeURIComponent(province)}` : "";
     Promise.all([
-      apiFetch("/stats/weather"),
-      apiFetch("/stats/tips"),
+      apiFetch(`/stats/weather${query}`),
+      apiFetch(`/stats/tips${query}`),
     ])
       .then(([weatherData, agriTips]) => {
         setWeather(weatherData);
@@ -78,7 +87,7 @@ export function WeatherMini() {
         setError(getDisplayErrorMessage(err, "Impossible de charger la météo live."));
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [province]);
 
   const topAlert = useMemo(
     () => tips.find((tip) => tip.urgency === "high") || tips[0],
