@@ -61,9 +61,7 @@ export default function MinistereAgriculturePage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <Card>
               <CardContent className="pt-6 flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Users className="w-5 h-5 text-primary" />
-                </div>
+                <Users className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div>
                   <p className="text-2xl font-bold">{stats.farmer_count.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground">{lang === "fr" ? "Fermiers actifs" : "Abarimyi bakora"}</p>
@@ -72,9 +70,7 @@ export default function MinistereAgriculturePage() {
             </Card>
             <Card>
               <CardContent className="pt-6 flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <MapPin className="w-5 h-5 text-primary" />
-                </div>
+                <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div>
                   <p className="text-2xl font-bold">{stats.province_count.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground">{lang === "fr" ? "Provinces couvertes" : "Intara zifashwa"}</p>
@@ -83,9 +79,7 @@ export default function MinistereAgriculturePage() {
             </Card>
             <Card>
               <CardContent className="pt-6 flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Package className="w-5 h-5 text-primary" />
-                </div>
+                <Package className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div>
                   <p className="text-2xl font-bold">{stats.active_listings.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground">{lang === "fr" ? "Annonces actives" : "Amatangazo ariho"}</p>

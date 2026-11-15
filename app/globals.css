@@ -102,6 +102,10 @@
   html {
     text-rendering: optimizeLegibility;
   }
+
+  svg.lucide {
+    stroke-width: 1.75;
+  }
 }
 
 @layer utilities {

@@ -23,7 +23,9 @@ import {
   Bell,
   Star,
   MapPin,
+  Package,
   RefreshCw,
+  CircleX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-config";
@@ -33,7 +35,7 @@ import { useRequiredSession } from "@/lib/session";
 
 const notifIcons: Record<string, React.ReactNode> = {
   dispute: <AlertTriangle className="w-4 h-4 text-destructive" />,
-  stock: <MapPin className="w-4 h-4 text-accent-foreground" />,
+  stock: <Package className="w-4 h-4 text-accent-foreground" />,
   payout: <Wallet className="w-4 h-4 text-primary" />,
   testimonial: <Star className="w-4 h-4 text-amber-500" />,
   system: <Bell className="w-4 h-4 text-primary" />,
@@ -226,32 +228,24 @@ export default function AdminOverviewPage() {
       value: formatBIF(data.gmv),
       growth: data.kpi_growth?.gmv ?? 0,
       icon: Wallet,
-      color: "text-primary",
-      bg: "bg-primary/10",
     },
     {
       label: copy.activeFarmers,
       value: data.active_farmers.toString(),
       growth: data.kpi_growth?.active_farmers ?? 0,
       icon: Users,
-      color: "text-accent-foreground",
-      bg: "bg-accent/30",
     },
     {
       label: copy.activeOrders,
       value: data.active_orders.toString(),
       growth: data.kpi_growth?.active_orders ?? 0,
       icon: ShoppingCart,
-      color: "text-primary",
-      bg: "bg-primary/10",
     },
     {
       label: copy.farmerPayments,
       value: formatBIF(data.total_payouts),
       growth: data.kpi_growth?.total_payouts ?? 0,
-      icon: TrendingUp,
-      color: "text-primary",
-      bg: "bg-primary/5",
+      icon: Wallet,
     },
   ];
 
@@ -262,20 +256,20 @@ export default function AdminOverviewPage() {
     >
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map(({ label, value, growth, icon: Icon, color, bg }) => (
+        {kpis.map(({ label, value, growth, icon: Icon }) => (
           <Card key={label} className="border-border">
             <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", bg)}>
-                  <Icon className={cn("w-5 h-5", color)} />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="truncate text-xs">{label}</span>
                 </div>
                 <span className={cn("flex items-center gap-0.5 text-xs font-medium", growth >= 0 ? "text-green-600" : "text-destructive")}>
                   {growth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                   {formatGrowth(growth, locale)}%
                 </span>
               </div>
-              <p className="mt-3 text-xl font-bold text-foreground leading-tight">{value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+              <p className="mt-3 text-xl font-semibold text-foreground leading-tight tabular-nums">{value}</p>
               <p className="text-[10px] text-muted-foreground/80 mt-1">{copy.previous30Days}</p>
             </CardContent>
           </Card>
@@ -284,33 +278,27 @@ export default function AdminOverviewPage() {
 
       {/* Performance & Quality Indicators */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-border bg-gradient-to-br from-card to-primary/5">
+        <Card className="border-border">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-primary" />
-            </div>
+            <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div>
               <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{copy.conversionRate}</p>
               <p className="text-xl font-bold text-foreground">{data.conversion_rate}%</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border bg-gradient-to-br from-card to-destructive/5">
+        <Card className="border-border">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-              <RefreshCw className="w-5 h-5 text-destructive" />
-            </div>
+            <CircleX className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div>
               <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{copy.cancellationRate}</p>
               <p className="text-xl font-bold text-foreground">{data.cancellation_rate}%</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border bg-gradient-to-br from-card to-emerald-500/5">
+        <Card className="border-border">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <Star className="w-5 h-5 text-emerald-600" />
-            </div>
+            <Wallet className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div>
               <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{copy.commissionRevenue}</p>
               <p className="text-xl font-bold text-foreground">{formatBIF(data.commission_current_period)}</p>
@@ -367,7 +355,7 @@ export default function AdminOverviewPage() {
                     !n.read && "bg-primary/5"
                   )}
                 >
-                  <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="shrink-0 mt-0.5">
                     {notifIcons[n.type as keyof typeof notifIcons] || notifIcons.system}
                   </div>
                   <div className="min-w-0 flex-1">

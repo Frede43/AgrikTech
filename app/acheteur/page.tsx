@@ -167,9 +167,7 @@ export default function BuyerHomePage() {
         {ready && user && (!user.province || !user.address) && (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-500">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                <MapPin className="w-4 h-4 text-amber-600" />
-              </div>
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
               <div className="flex-1">
                 <p className="text-xs font-bold text-amber-900 uppercase tracking-tight">Profil incomplet</p>
                 <p className="text-[11px] text-amber-800/80 mt-0.5 leading-relaxed">

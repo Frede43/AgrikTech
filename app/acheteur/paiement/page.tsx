@@ -17,9 +17,9 @@ import { getDisplayErrorMessage, isLikelyNetworkError, logIfNotNetworkError, use
 import { formatUserLocation, useSessionUserProfile } from "@/lib/user-profile";
 
 const paymentMethods = [
-  { id: "lumicash", label: "Lumicash", prefix: "+257 7X", color: "bg-yellow-400", icon: "🌟" },
-  { id: "ecocash", label: "EcoCash", prefix: "+257 7X", color: "bg-green-500", icon: "📱" },
-  { id: "airtel", label: "Airtel Money", prefix: "+257 7X", color: "bg-red-500", icon: "💳" },
+  { id: "lumicash", label: "Lumicash", prefix: "+257 7X" },
+  { id: "ecocash", label: "EcoCash", prefix: "+257 7X" },
+  { id: "airtel", label: "Airtel Money", prefix: "+257 7X" },
 ];
 
 export default function PaiementPage() {
@@ -195,11 +195,9 @@ export default function PaiementPage() {
 
         {/* Payment method */}
         <div className="bg-card rounded-3xl border border-border p-6 shadow-sm space-y-6">
-          <div className="flex items-center gap-4 text-primary">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-primary" />
-            </div>
-            <h2 className="text-sm font-black text-foreground uppercase tracking-widest">{text.payMethod}</h2>
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <h2 className="text-sm font-semibold text-foreground">{text.payMethod}</h2>
           </div>
           <div className="grid gap-3">
             {paymentMethods.map((m) => (
@@ -212,12 +210,6 @@ export default function PaiementPage() {
                 )}
               >
                 {method === m.id && <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />}
-                <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm border transition-colors",
-                  method === m.id ? "bg-white border-primary/20" : "bg-card border-border/50 group-hover:bg-secondary/50"
-                )}>
-                  {m.icon}
-                </div>
                 <div className="flex-1 min-w-0">
                   <p className={cn(
                     "text-base font-black tracking-tight truncate transition-colors",

@@ -221,9 +221,7 @@ export default function ProductsPage() {
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-5 py-32 text-center text-muted-foreground bg-secondary/20 rounded-3xl border border-dashed border-border">
-              <div className="w-16 h-16 rounded-full bg-background flex items-center justify-center shadow-sm">
-                <Leaf className="h-8 w-8 text-muted-foreground/40" />
-              </div>
+              <Leaf className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
               <div className="max-w-md">
                 <p className="font-bold text-lg text-foreground mb-2">{text.pubCatEmpty}</p>
                 <p className="text-sm text-balance leading-relaxed">{text.pubCatEmptyDesc}</p>
@@ -247,8 +245,8 @@ export default function ProductsPage() {
                           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
                       ) : (
-                        <div className="text-6xl transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3">
-                          <CategoryIcon category={product.category} className="h-9 w-9 text-muted-foreground/55" />
+                        <div className="flex h-full items-center justify-center">
+                          <CategoryIcon category={product.category} className="h-12 w-12 text-muted-foreground/55" />
                         </div>
                       )}
 

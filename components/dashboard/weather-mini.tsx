@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CloudRain, Sun, CloudSun, MapPin, RefreshCw } from "lucide-react";
+import { MapPin, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { WeatherIcon } from "@/components/weather/weather-icon";
 import { apiFetch } from "@/lib/api-config";
 import { getDisplayErrorMessage, logIfNotNetworkError } from "@/lib/offline";
 
@@ -12,6 +13,7 @@ interface WeatherData {
   current: {
     temp: number;
     condition: string;
+    icon: string;
     humidity: number;
     wind: number;
   };
@@ -20,6 +22,7 @@ interface WeatherData {
     high: number;
     low: number;
     icon: string;
+    desc: string;
     rain: number;
   }>;
 }
@@ -33,29 +36,10 @@ interface AgriTip {
 }
 
 const urgencyConfig = {
-  high: "bg-red-50 border-red-200 text-red-800",
-  medium: "bg-amber-50 border-amber-200 text-amber-800",
-  low: "bg-primary/5 border-primary/20 text-primary",
+  high: "border-amber-300",
+  medium: "border-border",
+  low: "border-border",
 };
-
-function WeatherIcon({ icon, className }: { icon: string; className?: string }) {
-  if (!icon) return <Sun className={className} />;
-  
-  // Si c'est une icône OpenWeatherMap (ex: 01d)
-  if (/^\d{2}[dn]$/.test(icon)) {
-    return (
-      <img 
-        src={`https://openweathermap.org/img/wn/${icon}@2x.png`} 
-        alt="weather" 
-        className={className}
-      />
-    );
-  }
-
-  if (icon === "cloud-rain") return <CloudRain className={className} />;
-  if (icon === "cloud-sun") return <CloudSun className={className} />;
-  return <Sun className={className} />;
-}
 
 interface WeatherMiniProps {
   // Sans cette prop, le backend affiche systématiquement la météo de
@@ -120,7 +104,7 @@ export function WeatherMini({ province }: WeatherMiniProps) {
         <>
       {/* Current weather */}
       <div className="flex items-center gap-4 p-3 rounded-xl bg-muted/50 mb-3">
-        <WeatherIcon icon={weather.forecast[0]?.icon || "cloud-sun"} className="w-10 h-10 text-accent-foreground shrink-0" />
+        <WeatherIcon icon={weather.current.icon} description={weather.current.condition} className="h-10 w-10" />
         <div>
           <p className="text-2xl font-bold text-foreground leading-none">{weather.current.temp}°C</p>
           <p className="text-xs text-muted-foreground mt-0.5">{weather.current.condition}</p>
@@ -144,7 +128,8 @@ export function WeatherMini({ province }: WeatherMiniProps) {
             <span className="text-xs font-medium text-muted-foreground">{day.day}</span>
             <WeatherIcon
               icon={day.icon}
-              className="w-5 h-5"
+              description={day.desc}
+              className="h-5 w-5 text-muted-foreground"
             />
             <span className="text-xs font-bold text-foreground">{day.high}°</span>
             {day.rain > 0 && (
@@ -156,9 +141,9 @@ export function WeatherMini({ province }: WeatherMiniProps) {
 
       {/* Top alert */}
       {topAlert && (
-        <div className={`border rounded-xl p-3 ${urgencyConfig[topAlert.urgency] || urgencyConfig.low}`}>
-          <p className="text-xs font-bold">{topAlert.title}</p>
-          <p className="text-xs mt-0.5 opacity-80 leading-relaxed">{topAlert.body}</p>
+        <div className={`rounded-xl border bg-card p-3 ${urgencyConfig[topAlert.urgency] || urgencyConfig.low}`}>
+          <p className="text-xs font-semibold text-foreground">{topAlert.title}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{topAlert.body}</p>
         </div>
       )}
         </>

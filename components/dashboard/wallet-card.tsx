@@ -1,4 +1,4 @@
-import { ArrowUpRight, Smartphone, Loader2 } from "lucide-react";
+import { ArrowUpRight, Loader2, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { formatBIF } from "@/lib/currency";
@@ -7,31 +7,25 @@ export function WalletCard({ balance, pending }: { balance: number, pending: num
   const displayBalance = balance !== null ? formatBIF(balance) : "---";
 
   return (
-    <div
-      className="rounded-2xl p-5 text-foreground"
-      style={{
-        background: "linear-gradient(135deg, oklch(0.42 0.13 145), oklch(0.55 0.14 160))",
-        color: "white",
-      }}
-    >
+    <div className="rounded-xl bg-primary p-5 text-primary-foreground">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-xs font-medium opacity-75">Portefeuille AgriConnect</p>
+          <div className="flex items-center gap-2 text-xs font-medium text-primary-foreground/75">
+            <WalletCards className="h-4 w-4" aria-hidden="true" />
+            <p>Portefeuille AgriConnect</p>
+          </div>
           <div className="flex items-baseline gap-2">
-            <p className="text-3xl font-bold mt-1 tracking-tight">
+            <p className="text-3xl font-semibold mt-1 tracking-tight tabular-nums">
               {displayBalance}
             </p>
             {balance === null && <Loader2 className="w-4 h-4 animate-spin opacity-50" />}
           </div>
         </div>
-        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-          <Smartphone className="w-5 h-5 text-white" />
-        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-5">
-        <div className="w-2 h-2 rounded-full bg-yellow-300 animate-pulse" />
-        <p className="text-xs opacity-75">
+        <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground/70" aria-hidden="true" />
+        <p className="text-xs text-primary-foreground/75">
           En attente: <span className="font-semibold">{formatBIF(pending)}</span>
         </p>
       </div>

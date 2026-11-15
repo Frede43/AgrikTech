@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useLanguage } from "@/lib/LanguageContext";
-import { Sprout, Target, Eye, Users } from "lucide-react";
+import { Compass, Eye, Sprout, Target, Users } from "lucide-react";
 
 export default function AboutPage() {
     const { text } = useLanguage();
@@ -64,20 +64,20 @@ export default function AboutPage() {
 
                     {/* Mission & Vision */}
                     <div className="grid md:grid-cols-2 gap-8">
-                        <div className="p-8 rounded-3xl bg-primary/5 border border-primary/10">
-                            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
-                                <Target className="w-6 h-6 text-primary" />
+                        <div className="p-8 rounded-xl bg-card border border-border">
+                            <div className="mb-4 flex items-center gap-3">
+                                <Target className="h-5 w-5 text-primary" aria-hidden="true" />
+                                <h2 className="text-2xl font-semibold">{text.aboutMission}</h2>
                             </div>
-                            <h2 className="text-2xl font-bold mb-4">{text.aboutMission}</h2>
                             <p className="text-muted-foreground leading-relaxed">
                                 {text.aboutMissionBody}
                             </p>
                         </div>
-                        <div className="p-8 rounded-3xl bg-accent/5 border border-accent/10">
-                            <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center mb-6">
-                                <Eye className="w-6 h-6 text-amber-800" />
+                        <div className="p-8 rounded-xl bg-card border border-border">
+                            <div className="mb-4 flex items-center gap-3">
+                                <Compass className="h-5 w-5 text-primary" aria-hidden="true" />
+                                <h2 className="text-2xl font-semibold">{text.aboutVision}</h2>
                             </div>
-                            <h2 className="text-2xl font-bold mb-4">{text.aboutVision}</h2>
                             <p className="text-muted-foreground leading-relaxed">
                                 {text.aboutVisionBody}
                             </p>
@@ -87,11 +87,11 @@ export default function AboutPage() {
                     {/* Why section */}
                     <section className="space-y-8">
                         <h2 className="text-3xl font-bold text-center">{text.aboutWhyTitle}</h2>
-                        <div className="grid md:grid-cols-3 gap-6">
+                        <div className="grid md:grid-cols-3 gap-4">
                             {sections.map((item, i) => (
-                                <div key={i} className="text-center p-6 bg-white rounded-2xl border border-border">
-                                    <item.icon className="w-8 h-8 mx-auto mb-4 text-primary" />
-                                    <h3 className="font-bold text-lg mb-2">{item.title}</h3>
+                                <div key={i} className="p-5 bg-card rounded-xl border border-border">
+                                    <item.icon className="h-5 w-5 mb-4 text-primary" aria-hidden="true" />
+                                    <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
                                     <p className="text-sm text-muted-foreground">{item.desc}</p>
                                 </div>
                             ))}

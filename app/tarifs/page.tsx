@@ -6,7 +6,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { useLanguage } from "@/lib/LanguageContext";
 import { apiFetch } from "@/lib/api-config";
 import { formatBIF } from "@/lib/currency";
-import { CheckCircle2, Truck, WalletCards, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, ShieldCheck, Truck, WalletCards } from "lucide-react";
 
 interface CommissionInfo {
     standard_commission_rate: number;
@@ -96,7 +96,7 @@ export default function FeesPage() {
                                         text.feesSecurePay
                                     ].map((fit, i) => (
                                         <li key={i} className="flex items-center gap-3 text-slate-300">
-                                            <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                                            <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                                             {fit}
                                         </li>
                                     ))}
@@ -106,8 +106,8 @@ export default function FeesPage() {
                                 <p className="text-slate-300 leading-relaxed mb-6">
                                     {commissionBody}
                                 </p>
-                                <div className="flex items-center gap-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
-                                    <ShieldCheck className="w-6 h-6 text-primary" />
+                                <div className="flex items-center gap-3 border-t border-white/10 pt-4">
+                                    <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                                     <span className="text-sm font-medium">{text.feesFundsGuaranteed}</span>
                                 </div>
                             </div>
@@ -117,9 +117,6 @@ export default function FeesPage() {
                     {/* Promo onboarding rate */}
                     <div className="relative p-8 md:p-10 rounded-[2.5rem] bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 overflow-hidden">
                         <div className="flex flex-col md:flex-row md:items-center gap-6">
-                            <div className="w-14 h-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-                                <Sparkles className="w-7 h-7" />
-                            </div>
                             <div>
                                 <div className="flex items-baseline gap-3 mb-2 flex-wrap">
                                     <h3 className="text-2xl font-bold text-foreground">{text.feesPromoTitle}</h3>
@@ -135,8 +132,10 @@ export default function FeesPage() {
                     {/* Detailed breakdown */}
                     <div className="grid md:grid-cols-2 gap-8">
                         <div className="p-8 rounded-3xl border border-border bg-card">
-                            <Truck className="w-10 h-10 text-primary mb-6" />
-                            <h3 className="text-xl font-bold mb-4 font-heading">{text.feesDelivery}</h3>
+                            <div className="mb-4 flex items-center gap-2">
+                                <Truck className="h-5 w-5 text-primary" aria-hidden="true" />
+                                <h3 className="text-xl font-semibold font-heading">{text.feesDelivery}</h3>
+                            </div>
                             <p className="text-muted-foreground leading-relaxed">
                                 {text.feesDeliveryBody}
                             </p>
@@ -153,8 +152,10 @@ export default function FeesPage() {
                         </div>
 
                         <div className="p-8 rounded-3xl border border-border bg-card">
-                            <WalletCards className="w-10 h-10 text-primary mb-6" />
-                            <h3 className="text-xl font-bold mb-4 font-heading">{text.feesWithdrawTitle}</h3>
+                            <div className="mb-4 flex items-center gap-2">
+                                <WalletCards className="h-5 w-5 text-primary" aria-hidden="true" />
+                                <h3 className="text-xl font-semibold font-heading">{text.feesWithdrawTitle}</h3>
+                            </div>
                             <p className="text-muted-foreground leading-relaxed">
                                 {text.feesWithdrawBody}
                             </p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Minus, Zap, Loader2, ShieldCheck, Layers3, Clock3, Radar, MapPin } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Loader2, Clock3, MapPin } from "lucide-react";
 import {
   getLivePriceActionText,
   getLivePriceBasisText,
@@ -17,9 +17,9 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { cn } from "@/lib/utils";
 
 const confidenceTone = {
-  high: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
-  medium: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
-  low: "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300",
+  high: "text-primary",
+  medium: "text-amber-700 dark:text-amber-300",
+  low: "text-muted-foreground",
 } as const;
 
 interface SokoLiveProps {
@@ -32,10 +32,7 @@ export function SokoLive({ province }: SokoLiveProps) {
 
   return (
     <div className="bg-card rounded-2xl border border-border p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-7 h-7 rounded-lg bg-accent/40 flex items-center justify-center">
-          <Zap className="w-3.5 h-3.5 text-accent-foreground" />
-        </div>
+      <div className="flex items-center gap-3 mb-4">
         <div>
           <h2 className="text-sm font-bold text-foreground">Soko Live</h2>
           <p className="text-xs text-muted-foreground">Prix du marché AgriConnect — actualisation automatique</p>
@@ -46,7 +43,7 @@ export function SokoLive({ province }: SokoLiveProps) {
         </div>
         {!loading && (
           <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-primary">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-primary" aria-hidden="true" />
             Live
           </span>
         )}
@@ -98,18 +95,15 @@ export function SokoLive({ province }: SokoLiveProps) {
                 </span>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold", confidenceTone[item.confidence_label ?? "medium"])}>
-                  <ShieldCheck className="h-3 w-3" />
+              <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-border pt-3 text-[11px]">
+                <span className={cn("font-medium", confidenceTone[item.confidence_label ?? "medium"])}>
                   {getLivePriceConfidenceText(item.confidence_label, lang)}
-                  {item.confidence_score ? ` ${item.confidence_score}/100` : ""}
+                  {item.confidence_score ? ` · ${item.confidence_score}/100` : ""}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                  <Layers3 className="h-3 w-3" />
+                <span className="font-medium text-muted-foreground">
                   {getLivePriceDepthText(item.market_depth, lang)}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                  <Radar className="h-3 w-3" />
+                <span className="font-medium text-muted-foreground">
                   {getLivePriceVolatilityText(item.volatility, lang)}
                 </span>
               </div>

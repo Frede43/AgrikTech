@@ -178,9 +178,7 @@ export default function LogistiquePage() {
                         <Badge className={cn("shrink-0 border text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg", priority.color)}>{priority.label}</Badge>
                       </div>
                       <div className="bg-secondary/40 rounded-xl px-4 py-3 flex items-center gap-3 border border-border/50">
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <Package className="w-4 h-4 text-primary" />
-                        </div>
+                        <Package className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                         <span className="text-xs font-bold text-foreground leading-snug">{col.items_label}</span>
                       </div>
                       <div className="flex items-center justify-between pt-1">
@@ -246,9 +244,7 @@ export default function LogistiquePage() {
 
             {myOrders.length === 0 && pool.length === 0 && (
               <div className="py-24 text-center gap-4 flex flex-col items-center bg-card rounded-3xl border border-dashed border-border shadow-sm">
-                <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-                  <Package className="w-8 h-8 text-muted-foreground/20" />
-                </div>
+                <Package className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                 <p className="text-sm font-bold text-muted-foreground">{text.logiMissionNone}</p>
               </div>
             )}

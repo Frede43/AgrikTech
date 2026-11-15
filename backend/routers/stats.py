@@ -379,6 +379,7 @@ def get_weather_stats(province: str = "Bujumbura"):
         "current": {
             "temp": weather_data["current"]["temp"],
             "condition": weather_data["current"]["description"],
+            "icon": weather_data["current"]["icon"],
             "humidity": weather_data["current"]["humidity"],
             "wind": weather_data["current"]["wind_speed"]
         },
@@ -387,7 +388,8 @@ def get_weather_stats(province: str = "Bujumbura"):
                 "day": f["date"], 
                 "high": f["temp"], 
                 "low": f["temp"] - 4, 
-                "icon": "cloud-sun" if "nuage" in f["desc"].lower() else "sun" if "soleil" in f["desc"].lower() else "cloud-rain", 
+                "icon": f["icon"],
+                "desc": f["desc"],
                 "rain": 0
             } for f in weather_data["forecast"]
         ]

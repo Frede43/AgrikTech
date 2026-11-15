@@ -108,9 +108,7 @@ export default function FarmerCooperativePage() {
           {/* Détails de la coop */}
           <Card className="border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shadow-xl shadow-primary/5 border-2">
             <CardContent className="pt-8 pb-8 flex flex-col md:flex-row items-center gap-8">
-              <div className="w-24 h-24 rounded-[2rem] bg-primary flex items-center justify-center shadow-2xl shadow-primary/30 transform -rotate-3">
-                <Leaf className="w-12 h-12 text-white" />
-              </div>
+              <Leaf className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
               <div className="flex-1 text-center md:text-left">
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                     <h2 className="text-4xl font-black tracking-tighter text-foreground">{cooperative.name}</h2>
@@ -139,9 +137,7 @@ export default function FarmerCooperativePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Card className="border-border/50 shadow-sm rounded-[2rem] overflow-hidden">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                  <Package className="w-7 h-7" />
-                </div>
+                <Package className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div>
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                     {lang === 'fr' ? 'Stock total' : 'Ibiri mu bubiko vyose'}
@@ -154,9 +150,7 @@ export default function FarmerCooperativePage() {
             </Card>
             <Card className="border-border/50 shadow-sm rounded-[2rem] overflow-hidden">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 shrink-0">
-                  <TrendingUp className="w-7 h-7" />
-                </div>
+                <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div>
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                     {lang === 'fr' ? 'Ventes totales' : 'Amagurisha yose'}
@@ -276,9 +270,7 @@ export default function FarmerCooperativePage() {
                         coopProducts.map(p => (
                             <Card key={p.id} className="border-border/50 hover:border-primary/30 transition-all rounded-3xl overflow-hidden group shadow-sm hover:shadow-md">
                                 <CardContent className="p-5 flex items-center gap-4">
-                                    <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
-                                        <CategoryIcon category={p.category} className="h-8 w-8 text-muted-foreground/55" />
-                                    </div>
+                                    <CategoryIcon category={p.category} className="h-7 w-7 shrink-0 text-muted-foreground/70" />
                                     <div className="flex-1">
                                         <h4 className="font-black text-foreground">{p.name}</h4>
                                         <p className="text-xs font-bold text-primary">{p.price_per_kg} BIF / kg</p>
@@ -316,13 +308,8 @@ export default function FarmerCooperativePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Option 1: Membre */}
                 <Card className="relative overflow-hidden border-2 border-transparent hover:border-primary/30 transition-all duration-500 group rounded-[2.5rem] bg-card shadow-xl hover:shadow-primary/5">
-                    <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Users className="w-32 h-32" />
-                    </div>
                     <CardContent className="p-10 space-y-6 relative z-10">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-500">
-                            <Users className="w-8 h-8" />
-                        </div>
+                        <Users className="h-5 w-5 text-primary" aria-hidden="true" />
                         <div className="space-y-2">
                             <h3 className="text-2xl font-black tracking-tight">{text.coopJoinGroup}</h3>
                             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -360,9 +347,7 @@ export default function FarmerCooperativePage() {
                         <ShieldCheck className="w-32 h-32" />
                     </div>
                     <CardContent className="p-10 space-y-6 relative z-10">
-                        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all duration-500">
-                            <ShieldCheck className="w-8 h-8" />
-                        </div>
+                        <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
                         <div className="space-y-2">
                             <h3 className="text-2xl font-black tracking-tight">{text.coopManageGroup}</h3>
                             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -401,7 +386,6 @@ export default function FarmerCooperativePage() {
                     <Card className="max-w-2xl mx-auto border-amber-200 shadow-2xl rounded-[2.5rem] overflow-hidden animate-in zoom-in-95 duration-500">
                         <div className="bg-amber-500 px-8 py-4 flex items-center justify-between">
                             <span className="text-white font-black uppercase tracking-widest text-xs">{text.coopFormTitle}</span>
-                            <ShieldCheck className="text-white/50 w-5 h-5" />
                         </div>
                         <CardContent className="p-10">
                             <form onSubmit={handleCreate} className="space-y-6">
@@ -431,10 +415,7 @@ export default function FarmerCooperativePage() {
                                     <input required type="tel" placeholder="+257 ..." className="w-full h-14 px-6 rounded-2xl border border-input bg-background font-bold" value={newCoop.contact_phone} onChange={e => setNewCoop({...newCoop, contact_phone: e.target.value})} />
                                 </div>
                                 <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 flex gap-3">
-                                    <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
-                                        <ShieldCheck className="w-3.5 h-3.5 text-white" />
-                                    </div>
-                                    <p className="text-[11px] text-amber-800 leading-relaxed font-bold">
+                                    <p className="text-sm text-amber-800 leading-relaxed">
                                         {text.coopLegalNote}
                                     </p>
                                 </div>
@@ -455,9 +436,7 @@ export default function FarmerCooperativePage() {
                             <Card key={c.id} className="hover:shadow-2xl transition-all duration-500 group border-border/50 rounded-3xl overflow-hidden bg-card">
                                 <CardContent className="p-8 flex items-center justify-between">
                                 <div className="flex items-center gap-5">
-                                    <div className="w-14 h-14 rounded-2xl bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-500 transform group-hover:rotate-6">
-                                    <Leaf className="w-7 h-7" />
-                                    </div>
+                                    <Leaf className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
                                     <div>
                                     <h3 className="font-black text-xl">{c.name}</h3>
                                     <p className="text-sm font-bold text-muted-foreground flex items-center gap-1.5 mt-1">

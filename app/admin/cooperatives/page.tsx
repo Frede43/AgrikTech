@@ -5,7 +5,7 @@ import { AdminLayout } from "@/components/admin/admin-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, ShieldAlert, MapPin, Phone, Search, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { MapPin, Phone, Search, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-config";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -88,9 +88,6 @@ export default function AdminCooperativesPage() {
                 <CardContent className="p-0">
                   <div className="flex flex-col md:flex-row md:items-center">
                     <div className="p-6 flex-1 flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${c.is_verified ? 'bg-green-500/10 text-green-600' : 'bg-amber-500/10 text-amber-600'}`}>
-                        {c.is_verified ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
-                      </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-lg">{c.name}</h3>

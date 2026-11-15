@@ -2,64 +2,36 @@
 
 import { useEffect, useState } from "react";
 import {
-  Cloud,
-  CloudSun,
-  CloudRain,
-  Sun,
   Droplets,
   Wind,
-  Thermometer,
-  Calendar,
   AlertTriangle,
+  Check,
   ChevronRight,
-  TrendingUp,
-  Bell,
+  Info,
+  MapPin,
   RefreshCw,
-  Globe,
+  Sprout,
 } from "lucide-react";
-import { t, Lang } from "@/lib/translations";
 import { useLanguage } from "@/lib/LanguageContext";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-config";
 import { useSession } from "@/lib/session";
+import { WeatherIcon } from "@/components/weather/weather-icon";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { BuyerLayout } from "@/components/buyer/buyer-layout";
 import { LogisticsLayout } from "@/components/logistics/logistics-layout";
 
-const urgencyConfig = {
-  high: {
-    bg: "bg-red-50",
-    border: "border-red-100",
-    icon: <AlertTriangle className="w-5 h-5 text-red-500" />,
-    text: "text-red-700",
-  },
-  medium: {
-    bg: "bg-amber-50",
-    border: "border-amber-100",
-    icon: <Bell className="w-5 h-5 text-amber-500" />,
-    text: "text-amber-700",
-  },
-  low: {
-    bg: "bg-blue-50",
-    border: "border-blue-100",
-    icon: <TrendingUp className="w-5 h-5 text-blue-500" />,
-    text: "text-blue-700",
-  },
-};
-
-const weatherIcons: Record<string, any> = {
-  Ensoleillé: <Sun className="w-12 h-12 text-yellow-400" />,
-  "Ciel dégagé": <Sun className="w-12 h-12 text-yellow-400" />,
-  Nuageux: <Cloud className="w-12 h-12 text-slate-400" />,
-  "Partiellement nuageux": <CloudSun className="w-12 h-12 text-slate-400" />,
-  Pluie: <CloudRain className="w-12 h-12 text-blue-400" />,
-  Orage: <CloudRain className="w-12 h-12 text-purple-400" />,
-};
+const tipIcons = {
+  warning: AlertTriangle,
+  info: Info,
+  success: Check,
+  tip: Sprout,
+} as const;
 
 export default function MeteoPage() {
-  const { lang, setLang, text } = useLanguage();
+  const { lang, text } = useLanguage();
   const { session, ready: sessionReady } = useSession();
   const [weather, setWeather] = useState<any>(null);
   const [tips, setTips] = useState<any[]>([]);
@@ -130,7 +102,7 @@ export default function MeteoPage() {
             className={cn(
               "px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0",
               selectedProvince === p
-                ? "bg-primary text-white border-primary shadow-md"
+              ? "bg-primary text-white border-primary"
                 : "bg-card text-muted-foreground border-border hover:border-primary/50"
             )}
           >
@@ -139,42 +111,33 @@ export default function MeteoPage() {
         ))}
       </div>
       {/* Hero weather card */}
-      <div
-        className="rounded-2xl p-6 text-white relative overflow-hidden"
-        style={{
-          background: "linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)",
-        }}
-      >
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="rounded-xl border border-border bg-card p-6">
+        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
           <div className="space-y-1">
             <div className="flex items-center gap-2 mb-2">
-              <Sun className="w-5 h-5 text-yellow-300" />
-              <p className="text-sm opacity-70">{weather.city}</p>
+              <MapPin className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <p className="text-sm text-muted-foreground">{weather.city}</p>
             </div>
-            <p className="text-5xl font-bold leading-none">{weather.current.temp}°C</p>
-            <p className="text-base mt-2 opacity-85 font-medium">
+            <p className="text-5xl font-semibold leading-none tabular-nums text-foreground">{weather.current.temp}°C</p>
+            <p className="mt-2 text-base font-medium text-foreground">
               {weather.current.description}
             </p>
             <div className="flex items-center gap-4 mt-4">
               <div className="flex items-center gap-1.5">
-                <Droplets className="w-4 h-4 opacity-70" />
-                <span className="text-sm opacity-85">{weather.current.humidity}% {text.weatherHumidity}</span>
+                <Droplets className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-sm text-muted-foreground">{weather.current.humidity}% {text.weatherHumidity}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Wind className="w-4 h-4 opacity-70" />
-                <span className="text-sm opacity-85">{weather.current.wind_speed} km/h {text.weatherWind}</span>
+                <Wind className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-sm text-muted-foreground">{weather.current.wind_speed} km/h {text.weatherWind}</span>
               </div>
             </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 flex items-center justify-center min-w-[120px]">
-            {weatherIcons[weather.current.description] || (
-              <img 
-                src={`https://openweathermap.org/img/wn/${weather.current.icon}@2x.png`} 
-                alt="weather" 
-                className="w-16 h-16"
-              />
-            )}
-          </div>
+          <WeatherIcon
+            icon={weather.current.icon}
+            description={weather.current.description}
+            className="h-16 w-16 md:h-20 md:w-20"
+          />
         </div>
       </div>
 
@@ -190,14 +153,7 @@ export default function MeteoPage() {
               <span className="text-xs font-medium text-muted-foreground mb-2">
                 {day.date}
               </span>
-              <div className="w-8 h-8 flex items-center justify-center mb-2">
-                <img 
-                  src={`https://openweathermap.org/img/wn/${day.icon}.png`} 
-                  alt="forecast" 
-                  className="w-8 h-8"
-                  title={day.desc}
-                />
-              </div>
+              <WeatherIcon icon={day.icon} description={day.desc} className="mb-2 h-7 w-7" />
               <span className="text-sm font-bold text-foreground">
                 {day.temp}°
               </span>
@@ -217,28 +173,24 @@ export default function MeteoPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {tips.map((tip, idx) => {
-            const config = (urgencyConfig as any)[tip.type] || urgencyConfig.low;
+            const TipIcon = tipIcons[tip.type as keyof typeof tipIcons] || Info;
+            const iconTone = tip.type === "warning"
+              ? "text-amber-700"
+              : tip.type === "success" || tip.type === "tip"
+                ? "text-primary"
+                : "text-muted-foreground";
             return (
               <div
                 key={idx}
-                className={cn(
-                  "p-4 rounded-2xl border transition-all hover:shadow-sm",
-                  config.bg,
-                  config.border
-                )}
+                className="rounded-xl border border-border bg-card p-4"
               >
                 <div className="flex items-center gap-3 mb-3">
-                  {config.icon}
-                  <span
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/50",
-                      config.text
-                    )}
-                  >
+                  <TipIcon className={cn("h-4 w-4 shrink-0", iconTone)} aria-hidden="true" />
+                  <span className="text-xs text-muted-foreground">
                     {tip.category}
                   </span>
                 </div>
-                <h3 className={cn("text-sm font-bold mb-1", config.text)}>
+                <h3 className="mb-1 text-sm font-semibold text-foreground">
                   {tip.title}
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
@@ -246,8 +198,7 @@ export default function MeteoPage() {
                 </p>
                 <button
                   className={cn(
-                    "mt-4 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider hover:opacity-70 transition-opacity",
-                    config.text
+                    "mt-4 flex items-center gap-1 text-xs font-medium text-primary hover:opacity-70 transition-opacity",
                   )}
                 >
                   Détails

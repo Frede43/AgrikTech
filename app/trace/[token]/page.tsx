@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ShieldCheck, MapPin, Calendar, User, Leaf, ArrowLeft, Award, CheckCircle2 } from "lucide-react";
+import { MapPin, Calendar, User, Leaf, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,9 +42,7 @@ export default function TraceabilityPage() {
 
   if (error || !product) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mb-6">
-        <ShieldCheck className="w-10 h-10" />
-      </div>
+      <XCircle className="mb-4 h-8 w-8 text-destructive" aria-hidden="true" />
       <h1 className="text-2xl font-black mb-2">Certificat Invalide</h1>
       <p className="text-muted-foreground mb-8">Ce code de traçabilité ne semble pas correspondre à un produit certifié AgriConnect.</p>
       <Button onClick={() => router.push("/")} className="rounded-2xl px-8">Retour à l'accueil</Button>
@@ -87,9 +85,7 @@ export default function TraceabilityPage() {
             <CardContent className="p-8 space-y-8">
                 {/* Producteur */}
                 <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                        <User className="w-6 h-6" />
-                    </div>
+                    <User className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div>
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Producteur</p>
                         <p className="font-black text-lg text-foreground">{product.seller_name}</p>
@@ -101,9 +97,7 @@ export default function TraceabilityPage() {
 
                 {/* Récolte */}
                 <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0">
-                        <Calendar className="w-6 h-6" />
-                    </div>
+                    <Calendar className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div>
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Date de Récolte</p>
                         <p className="font-black text-lg text-foreground">
@@ -116,10 +110,8 @@ export default function TraceabilityPage() {
                 </div>
 
                 {/* Certification */}
-                <div className="pt-6 border-t border-dashed flex flex-col items-center text-center space-y-3">
-                    <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                        <Award className="w-8 h-8" />
-                    </div>
+                <div className="pt-6 border-t border-border flex flex-col items-center text-center space-y-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary" aria-hidden="true" />
                     <div>
                         <h4 className="font-black text-lg">Produit Certifié</h4>
                         <p className="text-xs text-muted-foreground leading-relaxed px-4">
