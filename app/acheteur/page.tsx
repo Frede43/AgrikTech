@@ -18,6 +18,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { loadCachedCatalogue, logIfNotNetworkError, saveCachedCatalogue, useOnlineStatus } from "@/lib/offline";
 import { useRequiredSession } from "@/lib/session";
 import { useSessionUserProfile } from "@/lib/user-profile";
+import { CategoryIcon } from "@/components/products/category-icon";
 
 interface Product {
   id: number;
@@ -137,17 +138,6 @@ export default function BuyerHomePage() {
         },
       ];
 
-  const getCategoryIcon = (category: string) => {
-    switch (category.toLowerCase()) {
-      case "legumes": return "🥦";
-      case "tubercules": return "🥔";
-      case "cereales": return "🌽";
-      case "fruits": return "🍌";
-      case "export": return "☕";
-      default: return "📦";
-    }
-  };
-
   return (
     <BuyerLayout title={lang === "fr" ? "Accueil" : "Ikaze"} subtitle={text.buyerWhatOrder}>
       {/* Hero / Greeting */}
@@ -217,7 +207,7 @@ export default function BuyerHomePage() {
               href={`/acheteur/recherche?cat=${cat.id}`}
               className="shrink-0 flex flex-col items-center gap-1.5 bg-card border border-border rounded-2xl px-4 py-3 min-w-[80px] shadow-sm hover:border-primary/40 transition-colors"
             >
-              <span className="text-2xl">{cat.icon}</span>
+              <CategoryIcon category={cat.label} className="h-6 w-6 text-primary" />
               <span className="text-xs font-bold text-foreground">{cat.label}</span>
               <span className="text-[10px] font-medium text-muted-foreground">{cat.count} {lang === "fr" ? "items" : "ibintu"}</span>
             </Link>
@@ -253,7 +243,7 @@ export default function BuyerHomePage() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (
-                  getCategoryIcon(product.category)
+                  <CategoryIcon category={product.category} className="h-9 w-9 text-muted-foreground/55" />
                 )}
                 <div className="absolute top-2 right-2 flex items-center gap-0.5 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded-full">
                   <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />

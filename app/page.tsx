@@ -11,8 +11,6 @@ import {
   Clock3,
   ArrowRight,
   ChevronRight,
-  Globe,
-  MessageCircle,
   Star,
   Sprout,
   Package,
@@ -28,7 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   getLivePriceActionText,
-  getLivePriceDepthText,
   getLivePriceConfidenceText,
   getLivePriceFreshnessLabel,
   getLivePriceScopeText,
@@ -66,11 +63,10 @@ interface LandingTestimonial {
   id: string;
   quote: string;
   author: string;
-  rating: number;
+  rating: number | null;
 }
 
 interface HeroSlide {
-  bg: string;
   label: string;
   market?: LivePrice;
 }
@@ -87,7 +83,9 @@ function normalizeLandingTestimonial(item: PublicTestimonial, lang: "fr" | "ki")
     id: String(item.id),
     quote,
     author: location ? `${authorName} — ${role}, ${location}` : `${authorName} — ${role}`,
-    rating: Number.isFinite(Number(item.rating)) ? Math.max(0, Math.min(5, Number(item.rating))) : 5,
+    rating: item.rating != null && Number.isFinite(Number(item.rating))
+      ? Math.max(0, Math.min(5, Number(item.rating)))
+      : null,
   };
 }
 
@@ -96,31 +94,28 @@ const profiles = [
     key: "farmer",
     icon: Sprout,
     titleKey: "roleFarmer" as const,
-    labelKey: "farmer" as const,
     subKey: "farmerSub" as const,
     href: getSignupPath("fermier"),
-    color: "border-primary bg-primary/5 hover:bg-primary/10",
-    iconColor: "text-primary bg-primary/10",
+    color: "border-border bg-card hover:border-primary/40",
+    iconColor: "text-primary",
   },
   {
     key: "buyer",
     icon: Package,
     titleKey: "roleBuyer" as const,
-    labelKey: "buyer" as const,
     subKey: "buyerSub" as const,
     href: getSignupPath("acheteur"),
-    color: "border-accent bg-accent/5 hover:bg-accent/10",
-    iconColor: "text-amber-800 bg-accent/20",
+    color: "border-border bg-card hover:border-primary/40",
+    iconColor: "text-primary",
   },
   {
     key: "driver",
     icon: Truck,
     titleKey: "roleDriver" as const,
-    labelKey: "driver" as const,
     subKey: "driverSub" as const,
     href: getSignupPath("logistique"),
-    color: "border-border bg-card hover:bg-secondary/50",
-    iconColor: "text-muted-foreground bg-muted",
+    color: "border-border bg-card hover:border-primary/40",
+    iconColor: "text-muted-foreground",
   },
 ];
 
@@ -132,18 +127,17 @@ export default function LandingPage() {
   const { prices, loading: pricesLoading } = useLivePrices();
   const fallbackHeroSlides: HeroSlide[] = lang === "fr"
     ? [
-      { bg: "bg-primary/90", label: "Tomates" },
-      { bg: "bg-amber-700/90", label: "Café" },
-      { bg: "bg-yellow-700/90", label: "Bananes" },
+      { label: "Tomates" },
+      { label: "Café" },
+      { label: "Bananes" },
     ]
     : [
-      { bg: "bg-primary/90", label: "Inyanya" },
-      { bg: "bg-amber-700/90", label: "Ikawa" },
-      { bg: "bg-yellow-700/90", label: "Igitoke" },
+      { label: "Inyanya" },
+      { label: "Ikawa" },
+      { label: "Igitoke" },
     ];
   const heroSlides: HeroSlide[] = prices.length > 0
-    ? prices.slice(0, 3).map((item, index) => ({
-      bg: ["bg-primary/90", "bg-emerald-700/90", "bg-amber-700/90"][index % 3],
+    ? prices.slice(0, 3).map((item) => ({
       label: item.product,
       market: item,
     }))
@@ -162,14 +156,11 @@ export default function LandingPage() {
       heroInsightUp: "Tendance haussière confirmée",
       heroInsightDown: "Fenêtre d'achat détectée",
       heroInsightStable: "Marché sous contrôle",
-      heroTestimonialLabel: "Retour terrain",
       heroMetricConfidence: "Confiance",
-      heroMetricDepth: "Profondeur",
       heroMetricVolatility: "Volatilité",
       heroMetricScope: "Portée",
       heroMetricRefresh: "Fraîcheur",
       heroMetricSignals: "Signaux",
-      heroMetricListings: "Annonces actives",
     }
     : {
       perUnit: "ku",
@@ -184,14 +175,11 @@ export default function LandingPage() {
       heroInsightUp: "Iduga ryemejwe",
       heroInsightDown: "Hari akaryo keza ko kugura",
       heroInsightStable: "Isoko riri ku rugero rwiza",
-      heroTestimonialLabel: "Ijambo ryo ku murima",
       heroMetricConfidence: "Kwizera",
-      heroMetricDepth: "Uburebure bw'isoko",
       heroMetricVolatility: "Ihindagurika",
       heroMetricScope: "Aho rishingiye",
       heroMetricRefresh: "Igihe vyavuguruwe",
       heroMetricSignals: "Ibimenyetso",
-      heroMetricListings: "Amatangazo ariho",
     };
   // Uniquement des témoignages réels, validés par un admin — aucun texte de
   // repli : une plateforme sans témoignage n'en affiche simplement aucun.
@@ -200,7 +188,6 @@ export default function LandingPage() {
     .filter((item): item is LandingTestimonial => item !== null);
   const activeHeroSlide = heroSlides[Math.min(slide, heroSlides.length - 1)] ?? heroSlides[0];
   const activeMarket = activeHeroSlide?.market;
-  const activeTestimonial = testimonials.length > 0 ? testimonials[slide % testimonials.length] : null;
   const heroInsightTitle = activeMarket
     ? activeMarket.trend === "up"
       ? copy.heroInsightUp
@@ -218,12 +205,6 @@ export default function LandingPage() {
         .replace("{provinces}", String(publicStats.province_count))
       + (activeMarket ? ` · ${prices.length} ${copy.heroLiveProducts}` : "")
     : null;
-
-  // Auto-advance carousel
-  useEffect(() => {
-    const id = setInterval(() => setSlide((s: number) => (s + 1) % heroSlides.length), 3500);
-    return () => clearInterval(id);
-  }, [heroSlides.length]);
 
   useEffect(() => {
     if (slide >= heroSlides.length) {
@@ -267,202 +248,126 @@ export default function LandingPage() {
       <SiteHeader />
 
       {/* ── HERO ───────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        {/* Background image with overlay */}
-        <div className="absolute inset-0">
-          <Image
-            src="/hero-burundi.jpg"
-            alt="Collines agricoles du Burundi"
-            fill
-            className="object-cover"
-            priority
-          />
-          {/* Photos réelles des produits en vitrine, en fondu enchaîné au fil
-              du carrousel. Repli sur l'image générique ci-dessus tant qu'un
-              slide n'a pas de photo (ex. fallback hors ligne). */}
-          {heroSlides.map((s, i) => {
-            const photo = buildImageUrl(s.market?.image_url);
-            if (!photo) return null;
-            return (
-              <img
-                key={`${s.label}-${i}`}
-                src={photo}
-                alt={s.label}
-                className={cn(
-                  "absolute inset-0 h-full w-full object-cover transition-opacity duration-1000",
-                  i === slide ? "opacity-100" : "opacity-0"
-                )}
-              />
-            );
-          })}
-          <div className="absolute inset-0 bg-primary/75" />
-        </div>
-
-        {/* Carousel tint overlay */}
-        <div
-          className={cn(
-            "absolute inset-0 transition-opacity duration-1000",
-            heroSlides[slide].bg,
-            "opacity-30"
-          )}
-        />
-
-        <div className="relative max-w-6xl mx-auto px-4 md:px-6 py-20 md:py-28">
-          {/* Social proof pill */}
-          {socialProofLabel && (
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white text-xs font-medium mb-6">
-              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-              {socialProofLabel}
+      <section className="border-b border-border bg-background">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 md:px-6 md:py-16 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12">
+          <div className="max-w-xl">
+            <p className="mb-5 text-sm font-medium text-primary">
+              {socialProofLabel || copy.heroLiveMeta}
+            </p>
+            <h1 className="font-display text-4xl leading-[1.04] text-foreground text-balance md:text-6xl">
+              {text.heroTitle}
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground md:text-lg">
+              {text.slogan}
+            </p>
+            <p className="mt-5 flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPin className="h-4 w-4 text-primary" aria-hidden="true" />
+              {activeMarket
+                ? getLivePriceScopeText(activeMarket.market_scope, activeMarket.market_scope_label, lang)
+                : copy.heroLiveMeta}
+            </p>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <Button asChild size="lg" className="h-12 rounded-lg px-5 font-medium">
+                <Link href="/produits">
+                  {text.heroCta}
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 rounded-lg border-border px-5 font-medium"
+                onClick={() => document.getElementById("profiles")?.scrollIntoView({ behavior: "smooth" })}
+              >
+                {text.heroSecondaryCta}
+              </Button>
             </div>
-          )}
+          </div>
 
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,420px)] lg:items-end">
-            <div>
-              <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight text-balance max-w-2xl mb-6">
-                {text.heroTitle}
-              </h1>
-
-              <p className="text-white/75 text-base md:text-lg mb-4 max-w-xl">
-                {text.slogan}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3 mb-8 text-xs md:text-sm text-white/80">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 backdrop-blur-sm">
-                  <Globe className="h-3.5 w-3.5" />
-                  {activeMarket
-                    ? getLivePriceScopeText(activeMarket.market_scope, activeMarket.market_scope_label, lang)
-                    : copy.heroLiveMeta}
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 backdrop-blur-sm">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  {activeMarket ? getLivePriceActionText(activeMarket.recommended_action, lang) : copy.heroLiveTitle}
-                </span>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
-                <Button
-                  asChild
-                  size="lg"
-                  className="bg-accent text-accent-foreground hover:bg-accent/90 font-bold text-base px-8 h-13 rounded-2xl shadow-lg"
-                >
-                  <Link href="/produits">
-                    {text.heroCta}
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Link>
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="bg-white/10 backdrop-blur-md text-white border-white/20 hover:bg-white/20 font-bold text-base px-8 h-13 rounded-2xl shadow-lg"
-                  onClick={() => {
-                    document.getElementById("profiles")?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                >
-                  {text.heroSecondaryCta}
-                </Button>
-              </div>
-
-              {/* Carousel indicators */}
-              <div className="flex items-center gap-2 mt-10">
-                {heroSlides.map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSlide(i)}
-                    className={cn(
-                      "h-1.5 rounded-full transition-all",
-                      i === slide ? "w-8 bg-accent" : "w-4 bg-white/40"
-                    )}
-                  />
-                ))}
-                <span className="ml-2 text-white/70 text-xs font-medium">{activeHeroSlide?.label}</span>
-              </div>
+          <div className="relative min-w-0">
+            <div className="relative aspect-[5/4] overflow-hidden rounded-xl border border-border bg-secondary">
+              {buildImageUrl(activeMarket?.image_url) ? (
+                <img
+                  src={buildImageUrl(activeMarket?.image_url) ?? undefined}
+                  alt={activeMarket?.product ?? "Produit agricole du Burundi"}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <Image
+                  src="/hero-burundi.jpg"
+                  alt="Cultures en terrasses sur les collines du Burundi"
+                  fill
+                  sizes="(min-width: 1024px) 52vw, 100vw"
+                  className="object-cover"
+                  priority
+                />
+              )}
+              <span className="absolute left-4 top-4 rounded-md bg-background/90 px-2.5 py-1 text-xs font-medium text-foreground">
+                Burundi
+              </span>
             </div>
 
-            <div className="rounded-[28px] border border-white/15 bg-white/10 p-5 md:p-6 text-white backdrop-blur-xl shadow-[0_20px_70px_rgba(0,0,0,0.25)]">
-              <div className="flex items-start justify-between gap-4 mb-5">
+            <div className="relative mx-3 -mt-16 rounded-xl border border-border bg-card p-4 shadow-[0_12px_32px_rgba(39,35,24,0.12)] sm:mx-6 sm:p-5">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                  <div className="flex items-center gap-2 text-xs font-medium text-primary">
+                    <span className="h-2 w-2 rounded-full bg-primary" />
                     {copy.heroLiveBadge}
                   </div>
-                  <p className="mt-3 text-lg font-semibold text-white">{heroInsightTitle}</p>
-                  <p className="mt-1 text-sm text-white/70">{copy.heroInsight}</p>
+                  {activeMarket ? (
+                    <>
+                      <h2 className="mt-3 text-lg font-semibold text-foreground">{activeMarket.product}</h2>
+                      <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
+                        {formatBIF(activeMarket.price)}
+                        <span className="ml-1 text-sm font-normal text-muted-foreground">/{activeMarket.unit}</span>
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {getLivePriceActionText(activeMarket.recommended_action, lang)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+                      {pricesLoading ? copy.heroLiveLoading : copy.heroLiveFallback}
+                    </p>
+                  )}
                 </div>
-                <div className="rounded-2xl border border-white/15 bg-black/10 px-3 py-2 text-right">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">Soko Live</p>
-                  <p className="mt-1 text-xs font-medium text-white/80">{activeHeroSlide?.label}</p>
-                </div>
+                {activeMarket && (
+                  <div className="shrink-0 text-right">
+                    <p className="text-xs text-muted-foreground">{copy.heroInsight}</p>
+                    <p className="mt-1 max-w-32 text-sm font-medium text-foreground">{heroInsightTitle}</p>
+                  </div>
+                )}
               </div>
 
-              {activeMarket ? (
-                <>
-                  <div className="rounded-3xl bg-black/10 p-5 border border-white/10">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-2xl md:text-3xl font-black tracking-tight text-white">
-                          {formatBIF(activeMarket.price)}
-                          <span className="ml-1 text-sm font-semibold text-white/70">/{activeMarket.unit}</span>
-                        </p>
-                        <p className="mt-2 text-sm text-white/70">
-                          {getLivePriceActionText(activeMarket.recommended_action, lang)}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-emerald-400/10 border border-emerald-300/20 px-3 py-2 text-right">
-                        <p className="text-[11px] font-semibold text-white/60">{getLivePriceTrendText(activeMarket, lang)}</p>
-                        <p className="text-sm font-bold text-white">{activeMarket.product}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Badge className="rounded-full bg-white/10 text-white border-white/10 hover:bg-white/10">
-                        {getLivePriceConfidenceText(activeMarket.confidence_label, lang)}
-                      </Badge>
-                      <Badge className="rounded-full bg-white/10 text-white border-white/10 hover:bg-white/10">
-                        {getLivePriceVolatilityText(activeMarket.volatility, lang)}
-                      </Badge>
-                      <Badge className="rounded-full bg-white/10 text-white border-white/10 hover:bg-white/10">
-                        {getLivePriceScopeText(activeMarket.market_scope, activeMarket.market_scope_label, lang)}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-2xl border border-white/10 bg-black/10 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">{copy.heroMetricDepth}</p>
-                      <p className="mt-1 font-semibold text-white">{getLivePriceDepthText(activeMarket.market_depth, lang)}</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/10 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">{copy.heroMetricRefresh}</p>
-                      <p className="mt-1 font-semibold text-white">{getLivePriceFreshnessLabel(activeMarket.freshness_minutes, lang)}</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/10 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">{copy.heroMetricSignals}</p>
-                      <p className="mt-1 font-semibold text-white">{activeMarket.sample_size ?? 0} {copy.signals}</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/10 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">{copy.heroMetricListings}</p>
-                      <p className="mt-1 font-semibold text-white">{activeMarket.active_listings ?? 0}</p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-3xl border border-white/10 bg-black/10 p-5 text-sm text-white/75">
-                  {pricesLoading ? copy.heroLiveLoading : copy.heroLiveFallback}
+              {activeMarket && (
+                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-xs sm:grid-cols-4">
+                  <div><p className="text-muted-foreground">{copy.heroMetricConfidence}</p><p className="mt-1 font-medium text-foreground">{getLivePriceConfidenceText(activeMarket.confidence_label, lang)}</p></div>
+                  <div><p className="text-muted-foreground">{copy.heroMetricVolatility}</p><p className="mt-1 font-medium text-foreground">{getLivePriceVolatilityText(activeMarket.volatility, lang)}</p></div>
+                  <div><p className="text-muted-foreground">{copy.heroMetricRefresh}</p><p className="mt-1 font-medium text-foreground">{getLivePriceFreshnessLabel(activeMarket.freshness_minutes, lang)}</p></div>
+                  <div><p className="text-muted-foreground">{copy.heroMetricSignals}</p><p className="mt-1 font-medium tabular-nums text-foreground">{activeMarket.sample_size ?? 0} {copy.signals}</p></div>
                 </div>
               )}
 
-              {activeTestimonial && (
-                <div className="mt-4 rounded-3xl border border-white/10 bg-black/10 p-4">
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    {copy.heroTestimonialLabel}
-                  </div>
-                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-white/85">
-                    “{activeTestimonial.quote}”
-                  </p>
-                  <p className="mt-2 text-xs font-medium text-white/60">{activeTestimonial.author}</p>
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
+                <span className="text-xs text-muted-foreground">
+                  {activeMarket ? getLivePriceTrendText(activeMarket, lang) : activeHeroSlide?.label}
+                </span>
+                <div className="flex items-center gap-1.5" aria-label={lang === "fr" ? "Choisir un prix" : "Hitamwo igiciro"}>
+                  {heroSlides.map((item, index) => (
+                    <button
+                      key={`${item.label}-${index}`}
+                      type="button"
+                      aria-label={item.label}
+                      aria-pressed={index === slide}
+                      onClick={() => setSlide(index)}
+                      className={cn(
+                        "h-2 w-2 rounded-full border border-primary transition-colors",
+                        index === slide ? "bg-primary" : "bg-transparent hover:bg-primary/30"
+                      )}
+                    />
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -475,25 +380,22 @@ export default function LandingPage() {
           <p className="text-muted-foreground mt-2 max-w-lg mx-auto">{text.whoSub}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {profiles.map(({ key, icon: Icon, titleKey, labelKey, subKey, href, color, iconColor }) => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {profiles.map(({ key, icon: Icon, titleKey, subKey, href, color, iconColor }) => (
             <Link
               key={key}
               href={href}
               className={cn(
-                "group relative flex flex-col gap-5 p-8 rounded-3xl border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1",
+                "group relative flex flex-col gap-4 rounded-xl border p-5 transition-colors duration-150",
                 color
               )}
             >
-              <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300", iconColor)}>
-                <Icon className="w-7 h-7" />
+              <div className="flex items-center gap-3">
+                <Icon className={cn("h-5 w-5 shrink-0", iconColor)} aria-hidden="true" />
+                <h3 className="text-lg font-semibold text-foreground">{text[titleKey]}</h3>
               </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black text-foreground tracking-tight">{text[titleKey]}</h3>
-                <p className="font-bold text-primary text-sm uppercase tracking-wider">{text[labelKey]}</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">{text[subKey]}</p>
-              </div>
-              <div className="flex items-center gap-2 text-primary text-sm font-bold mt-4 pt-4 border-t border-border/50 group-hover:gap-3 transition-all">
+              <p className="min-h-10 text-sm leading-6 text-muted-foreground">{text[subKey]}</p>
+              <div className="mt-auto flex items-center gap-2 border-t border-border pt-3 text-sm font-medium text-primary">
                 {text.landingRegisterAs.replace("{role}", text[titleKey])}
                 <ChevronRight className="w-4 h-4" />
               </div>
@@ -521,8 +423,8 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs font-semibold text-green-600 uppercase tracking-wider">Soko Live</span>
+                <span className="h-2 w-2 rounded-full bg-primary" />
+                <span className="text-xs font-medium text-primary">Soko Live</span>
               </div>
               <h2 className="text-2xl font-bold text-foreground">{text.pricesTitle}</h2>
               <p className="text-muted-foreground text-sm mt-1">{text.pricesSub}</p>
@@ -536,11 +438,11 @@ export default function LandingPage() {
             {prices.slice(0, 4).map((item) => (
               <div
                 key={`${item.product}-${item.unit}`}
-                className="flex flex-col gap-3 p-4 rounded-2xl bg-secondary/60 border border-border"
+                className="flex flex-col gap-3 border-t border-border py-4"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-foreground">{item.product}</span>
-                  <span className="rounded-full bg-background px-2.5 py-1 text-[10px] font-bold text-foreground border border-border">
+                  <span className="text-xs text-muted-foreground">
                     {getLivePriceConfidenceText(item.confidence_label, lang)}
                   </span>
                 </div>
@@ -598,16 +500,16 @@ export default function LandingPage() {
       <section className="max-w-6xl mx-auto px-4 md:px-6 py-16 grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Payment */}
         <div className="flex flex-col gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-accent/20 flex items-center justify-center">
-            <Phone className="w-6 h-6 text-amber-800" />
+          <div className="w-8 h-8 flex items-center justify-center">
+            <Phone className="w-5 h-5 text-primary" />
           </div>
           <h3 className="text-xl font-bold text-foreground">{text.paymentsTitle}</h3>
           <p className="text-muted-foreground text-sm leading-relaxed">{text.paymentsSub}</p>
-          <div className="flex flex-wrap gap-2 mt-auto">
+          <div className="flex flex-wrap gap-x-4 gap-y-2 mt-auto text-xs text-muted-foreground">
             {["Lumicash", "EcoCash", "Airtel Money"].map((name) => (
               <span
                 key={name}
-                className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-xs font-semibold text-foreground"
+                className="border-b border-border pb-1 font-medium text-foreground"
               >
                 {name}
               </span>
@@ -617,19 +519,19 @@ export default function LandingPage() {
 
         {/* Traceability */}
         <div className="flex flex-col gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <MapPin className="w-6 h-6 text-primary" />
+          <div className="w-8 h-8 flex items-center justify-center">
+            <MapPin className="w-5 h-5 text-primary" />
           </div>
           <h3 className="text-xl font-bold text-foreground">{text.traceTitle}</h3>
           <p className="text-muted-foreground text-sm leading-relaxed">{text.traceSub}</p>
           {/* Traceability steps */}
-          <div className="flex items-center gap-2 mt-auto flex-wrap">
+          <div className="flex items-center gap-2 mt-auto flex-wrap text-sm">
             {([text.step1, text.step2, text.step3] as string[]).map((step, i, arr) => (
               <div key={step} className="flex items-center gap-2">
-                <span className="px-3 py-1.5 rounded-lg bg-primary/10 text-xs font-semibold text-primary border border-primary/20">
+                <span className="font-medium text-foreground">
                   {step}
                 </span>
-                {i < arr.length - 1 && <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                {i < arr.length - 1 && <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />}
               </div>
             ))}
           </div>
@@ -637,19 +539,18 @@ export default function LandingPage() {
 
         {/* Guarantee */}
         <div className="flex flex-col gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center">
-            <ShieldCheck className="w-6 h-6 text-green-700" />
+          <div className="w-8 h-8 flex items-center justify-center">
+            <ShieldCheck className="w-5 h-5 text-primary" />
           </div>
           <h3 className="text-xl font-bold text-foreground">{text.landingQualityTitle}</h3>
           <p className="text-muted-foreground text-sm leading-relaxed">
             {text.landingQualityDesc}
           </p>
-          <div className="flex items-center gap-1.5 mt-auto">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="w-4 h-4 fill-accent text-accent" />
-            ))}
-            <span className="text-sm font-semibold text-foreground ml-1">4.8 / 5</span>
-          </div>
+          {testimonials.length > 0 && (
+            <p className="mt-auto text-sm font-medium text-primary">
+              {lang === "fr" ? "Témoignages publiés après validation" : "Ivyagiriza vyemejwe"}
+            </p>
+          )}
         </div>
       </section>
 
@@ -684,22 +585,25 @@ export default function LandingPage() {
             >
               <CarouselContent>
                 {testimonials.map(({ id, quote, author, rating }) => {
-                  const filledStars = Math.max(1, Math.min(5, Math.round(rating || 5)));
+                  const filledStars = rating === null ? 0 : Math.max(0, Math.min(5, Math.round(rating)));
 
                   return (
                     <CarouselItem key={id} className="md:basis-1/2 xl:basis-1/3">
                       <div className="flex h-full flex-col gap-4 rounded-2xl border border-white/15 bg-white/10 p-6">
-                        <div className="flex gap-0.5">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={cn(
-                                "w-4 h-4",
-                                i < filledStars ? "fill-accent text-accent" : "text-white/25"
-                              )}
-                            />
-                          ))}
-                        </div>
+                        {rating !== null && (
+                          <div className="flex gap-0.5" aria-label={`${rating} / 5`}>
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                aria-hidden="true"
+                                className={cn(
+                                  "w-4 h-4",
+                                  i < filledStars ? "fill-accent text-accent" : "text-white/25"
+                                )}
+                              />
+                            ))}
+                          </div>
+                        )}
                         <p className="flex-1 text-white/90 text-base leading-relaxed">{'"'}{quote}{'"'}</p>
                         <p className="text-white/50 text-sm font-medium">— {author}</p>
                       </div>

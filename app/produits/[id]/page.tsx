@@ -12,6 +12,7 @@ import { formatBIF } from "@/lib/currency";
 import { logIfNotNetworkError } from "@/lib/offline";
 import { useSession } from "@/lib/session";
 import { Pencil } from "lucide-react";
+import { CategoryIcon } from "@/components/products/category-icon";
 
 interface Product {
   id: number;
@@ -84,7 +85,7 @@ export default function PublicProductDetailPage() {
             Retour au catalogue
           </Link>
           <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-3xl border border-border bg-secondary text-7xl">
-            {imageUrl ? <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" /> : "🌾"}
+            {imageUrl ? <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" /> : <CategoryIcon category={product.category} className="h-14 w-14 text-muted-foreground/55" />}
           </div>
         </div>
 

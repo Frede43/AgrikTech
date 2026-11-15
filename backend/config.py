@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Dict, List
 from decimal import Decimal
 from urllib.parse import urlparse
@@ -189,11 +190,11 @@ USSD_WEBHOOK_SECRET = os.getenv("USSD_WEBHOOK_SECRET", "")
 if IS_PRODUCTION and USSD_WEBHOOK_SECRET and len(USSD_WEBHOOK_SECRET) < 32:
     raise RuntimeError("USSD_WEBHOOK_SECRET doit contenir au moins 32 caractères.")
 
-# SMS : "console" (simulateur, défaut), "twilio" ou "africastalking"
+# SMS : "console" (simulateur, défaut), "twilio", "africastalking" ou "infobip"
 SMS_PROVIDER = os.getenv("SMS_PROVIDER", "console" if not IS_PRODUCTION else "").strip().lower()
-if IS_PRODUCTION and SMS_PROVIDER not in ("twilio", "africastalking"):
+if IS_PRODUCTION and SMS_PROVIDER not in ("twilio", "africastalking", "infobip"):
     raise RuntimeError(
-        "SMS_PROVIDER doit désigner un fournisseur réel (twilio ou africastalking) hors développement/test."
+        "SMS_PROVIDER doit désigner un fournisseur réel (twilio, africastalking ou infobip) hors développement/test."
     )
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
@@ -201,6 +202,9 @@ TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")
 AFRICASTALKING_USERNAME = os.getenv("AFRICASTALKING_USERNAME", "")
 AFRICASTALKING_API_KEY = os.getenv("AFRICASTALKING_API_KEY", "")
 AFRICASTALKING_SENDER_ID = os.getenv("AFRICASTALKING_SENDER_ID", "")
+INFOBIP_BASE_URL = os.getenv("INFOBIP_BASE_URL", "").strip().rstrip("/")
+INFOBIP_API_KEY = os.getenv("INFOBIP_API_KEY", "")
+INFOBIP_SENDER = os.getenv("INFOBIP_SENDER", "").strip()
 
 # Mobile money : "mock" (défaut, paiement instantané simulé) ou "api"
 # (agrégateur REST générique confirmé par webhook).
@@ -226,3 +230,22 @@ if IS_PRODUCTION:
         raise RuntimeError("Les identifiants Twilio complets sont requis pour l'envoi d'OTP.")
     if SMS_PROVIDER == "africastalking" and not (AFRICASTALKING_USERNAME and AFRICASTALKING_API_KEY):
         raise RuntimeError("Les identifiants Africa's Talking sont requis pour l'envoi d'OTP.")
+    if SMS_PROVIDER == "infobip":
+        if not (INFOBIP_BASE_URL and INFOBIP_API_KEY and INFOBIP_SENDER):
+            raise RuntimeError(
+                "INFOBIP_BASE_URL, INFOBIP_API_KEY et INFOBIP_SENDER sont requis pour l'envoi d'OTP."
+            )
+        parsed_infobip_url = urlparse(INFOBIP_BASE_URL)
+        infobip_host = (parsed_infobip_url.hostname or "").lower()
+        if (
+            parsed_infobip_url.scheme != "https"
+            or not re.fullmatch(r"(?:[a-z0-9-]+\.)?api(?:-[a-z0-9-]+)?\.infobip\.com", infobip_host)
+            or parsed_infobip_url.path not in ("", "/")
+            or parsed_infobip_url.query
+            or parsed_infobip_url.fragment
+            or parsed_infobip_url.username is not None
+            or parsed_infobip_url.password is not None
+        ):
+            raise RuntimeError(
+                "INFOBIP_BASE_URL doit être l'URL HTTPS de votre compte Infobip, sans chemin ni identifiants."
+            )

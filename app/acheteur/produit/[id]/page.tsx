@@ -13,6 +13,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { apiFetch, buildImageUrl } from "@/lib/api-config";
 import { logIfNotNetworkError } from "@/lib/offline";
 import { cn } from "@/lib/utils";
+import { CategoryIcon } from "@/components/products/category-icon";
 
 interface Product {
   id: number;
@@ -101,14 +102,6 @@ export default function ProductDetailPage() {
 
   const total = product.price_per_kg * qty;
 
-  const categoryEmoji: Record<string, string> = {
-    legumes: "🥦",
-    tubercules: "🥔",
-    cereales: "🌽",
-    fruits: "🍌",
-    export: "☕",
-  };
-
   return (
     <BuyerLayout title={product.name} subtitle={`${product.seller_name || text.prodDetailFarmer} — ${product.province}`}>
       <div className="max-w-md mx-auto px-4 py-6 space-y-6 pb-28">
@@ -121,7 +114,7 @@ export default function ProductDetailPage() {
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
           ) : (
-            <span className="opacity-80 group-hover:scale-110 transition-transform duration-500">{categoryEmoji[product.category] ?? "🌱"}</span>
+            <CategoryIcon category={product.category} className="h-14 w-14 text-muted-foreground/55" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-60" />
           <button

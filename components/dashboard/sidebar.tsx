@@ -20,7 +20,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api-config";
 import { useRequiredSession } from "@/lib/session";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -92,9 +91,6 @@ export function Sidebar({ mobile = false }: SidebarProps) {
             <p className="text-xs text-sidebar-foreground/50 truncate">{user?.province || text.sideProvinceNotSet}</p>
           </div>
           {!user && ready && session && <Loader2 className="ml-auto w-4 h-4 animate-spin text-sidebar-foreground/60" />}
-          <Badge className="ml-auto shrink-0 bg-sidebar-primary/20 text-sidebar-primary border-0 text-xs">
-            Pro
-          </Badge>
         </div>
       </div>
 

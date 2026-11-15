@@ -67,7 +67,7 @@ Principales variables :
 | `DATABASE_URL` | PostgreSQL obligatoire en production (`postgresql://...`); SQLite réservé au développement et test |
 | `FRONTEND_URL` | Une ou plusieurs origines HTTPS autorisées par le CORS en production |
 | `SESSION_HTTPS_ONLY` / `SESSION_SAMESITE` | `true` / `none` hors développement et test |
-| `SMS_PROVIDER` | `twilio` ou `africastalking` hors développement et test ; `console` est réservé au local |
+| `SMS_PROVIDER` | `twilio`, `africastalking` ou `infobip` hors développement et test ; `console` est réservé au local |
 | `MOBILE_MONEY_PROVIDER` | `api` avec URL HTTPS, clé API et secret webhook hors développement et test ; `mock` est réservé au local |
 | `USSD_WEBHOOK_SECRET` | Secret aléatoire de 32 caractères minimum partagé avec la passerelle USSD ; sans lui, l'API USSD refuse les appels |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | Stockage distant des pièces KYC privées et des images produit; requis pour les uploads hors développement et test |
@@ -99,7 +99,7 @@ La CI GitHub Actions (`.github/workflows/ci.yml`) exécute tests backend, typech
 
 1. **Backend** (Render, Railway, Fly.io, VPS…) : `uvicorn backend.main:app`, PostgreSQL managé, `ENVIRONMENT=production`, `SECRET_KEY` généré, `SESSION_HTTPS_ONLY=true`, `FRONTEND_URL` = domaine du frontend.
 2. **Frontend** (Vercel…) : définir `NEXT_PUBLIC_API_URL` = URL publique du backend.
-3. **SMS** : configurer `SMS_PROVIDER=twilio` ou `africastalking` avec les identifiants du compte. Le backend refuse de démarrer avec le simulateur hors développement et test.
+3. **SMS** : configurer `SMS_PROVIDER=twilio`, `africastalking` ou `infobip` avec les identifiants du compte. Pour Infobip, définir `INFOBIP_BASE_URL` (par ex. `https://xxxxx.api.infobip.com`), `INFOBIP_API_KEY` et `INFOBIP_SENDER`. Le backend refuse de démarrer sans fournisseur réel hors développement et test.
 4. **Mobile money** : `MOBILE_MONEY_PROVIDER=api`, URL HTTPS, clé de l'agrégateur et `MOBILE_MONEY_WEBHOOK_SECRET` aléatoire d'au moins 32 caractères ; chaque réponse ou webhook `SUCCESS` doit inclure un `provider_ref` unique (3–120 caractères). Sans référence, la commande reste en attente pour rapprochement admin. L'agrégateur confirme les paiements sur `POST /payments/webhook`.
 5. **USSD** : définir le secret aléatoire `USSD_WEBHOOK_SECRET` (32 caractères minimum) dans l'API et dans la configuration d'en-tête de la passerelle. Les appels USSD sont refusés tant que le secret n'est pas configuré.
 6. **Fichiers** : configurer les trois variables `IMAGEKIT_*` avec un endpoint HTTPS. Les nouveaux documents KYC sont privés et accessibles via l'API authentifiée ; les photos produits restent publiques. Les téléversements KYC et produit sont refusés si ImageKit n'est pas configuré hors développement et test.

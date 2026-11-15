@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch, buildImageUrl } from "@/lib/api-config";
 import { useLanguage } from "@/lib/LanguageContext";
+import { CategoryIcon } from "@/components/products/category-icon";
 
 export default function TraceabilityPage() {
   const { token } = useParams();
@@ -73,7 +74,9 @@ export default function TraceabilityPage() {
                 {product.image_url ? (
                     <img src={buildImageUrl(product.image_url) ?? ""} alt={product.name} className="w-full h-full object-cover" />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-6xl opacity-20">🌱</div>
+                    <div className="flex h-full w-full items-center justify-center">
+                      <CategoryIcon category={product.category ?? ""} className="h-14 w-14 text-primary/40" />
+                    </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-6 left-6">

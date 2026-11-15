@@ -15,6 +15,7 @@ class SMSService:
       - "console"        : simulateur (défaut, dev/tests) — affiche le SMS en console
       - "twilio"         : API REST Twilio
       - "africastalking" : API REST Africa's Talking
+      - "infobip"        : API REST Infobip
     """
 
     @property
@@ -24,7 +25,7 @@ class SMSService:
     @property
     def is_simulated(self) -> bool:
         """Vrai quand aucun fournisseur réel n'est configuré."""
-        return self.provider not in ("twilio", "africastalking")
+        return self.provider not in ("twilio", "africastalking", "infobip")
 
     # ── Envoi ─────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,8 @@ class SMSService:
             return self._send_via_twilio(phone_number, message)
         if self.provider == "africastalking":
             return self._send_via_africastalking(phone_number, message)
+        if self.provider == "infobip":
+            return self._send_via_infobip(phone_number, message)
         return self._send_via_console(phone_number, message)
 
     def send_otp(self, phone_number: str, otp_code: str) -> bool:
@@ -101,6 +104,53 @@ class SMSService:
             return False
         except requests.RequestException as exc:
             print(f"[SMS] Erreur réseau Africa's Talking: {exc}")
+            return False
+
+    @staticmethod
+    def _send_via_infobip(phone_number: str, message: str) -> bool:
+        if not (config.INFOBIP_BASE_URL and config.INFOBIP_API_KEY and config.INFOBIP_SENDER):
+            print("[SMS] Infobip mal configuré (INFOBIP_BASE_URL / INFOBIP_API_KEY / INFOBIP_SENDER).")
+            return False
+
+        payload = {
+            "messages": [{
+                "sender": config.INFOBIP_SENDER,
+                "destinations": [{"to": phone_number}],
+                "content": {"text": message},
+            }],
+        }
+        try:
+            response = requests.post(
+                f"{config.INFOBIP_BASE_URL}/sms/3/messages",
+                headers={
+                    "Authorization": f"App {config.INFOBIP_API_KEY}",
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=10,
+            )
+            if response.status_code != 200:
+                print(f"[SMS] Erreur Infobip {response.status_code}.")
+                return False
+
+            body = response.json()
+            messages = body.get("messages", []) if isinstance(body, dict) else []
+            if not isinstance(messages, list) or not messages or not isinstance(messages[0], dict):
+                print("[SMS] Infobip n'a confirmé aucun message.")
+                return False
+
+            first_message = messages[0]
+            status = first_message.get("status")
+            if not first_message.get("messageId") or not isinstance(status, dict):
+                print("[SMS] Réponse Infobip incomplète.")
+                return False
+            if status.get("groupName", "").upper() == "REJECTED":
+                print("[SMS] Infobip a refusé l'envoi du message.")
+                return False
+            return True
+        except (requests.RequestException, ValueError) as exc:
+            print(f"[SMS] Erreur Infobip: {type(exc).__name__}.")
             return False
 
     # ── Réception (canal rural SMS entrant) ───────────────────────────────────

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch, buildImageUrl } from "@/lib/api-config";
 import { useLanguage } from "@/lib/LanguageContext";
 import { logIfNotNetworkError } from "@/lib/offline";
+import { CategoryIcon } from "@/components/products/category-icon";
 
 interface Product {
   id: number;
@@ -76,17 +77,6 @@ export default function RecherchePage() {
     return matchQuery && matchFilter;
   });
 
-  const getCategoryIcon = (category: string) => {
-    switch (category.toLowerCase()) {
-      case "legumes": return "🥦";
-      case "tubercules": return "🥔";
-      case "cereales": return "🌽";
-      case "fruits": return "🍌";
-      case "export": return "☕";
-      default: return "📦";
-    }
-  };
-
   return (
     <BuyerLayout title={text.searchTitle} subtitle={text.searchSubtitle}>
       {/* Search bar */}
@@ -115,7 +105,7 @@ export default function RecherchePage() {
               onClick={() => setActiveCategory(cat.id)}
               className={cn("shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all", activeCategory === cat.id ? "bg-primary text-white border-primary shadow-sm" : "bg-card border-border text-muted-foreground hover:border-primary/40")}
             >
-              <span className="text-sm">{cat.icon}</span> {cat.label}
+              <CategoryIcon category={cat.label} className="h-4 w-4" /> {cat.label}
             </button>
           ))}
         </div>
@@ -177,7 +167,7 @@ export default function RecherchePage() {
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                   ) : (
-                    getCategoryIcon(product.category)
+                    <CategoryIcon category={product.category} className="h-9 w-9 text-muted-foreground/55" />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>

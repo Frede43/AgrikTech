@@ -32,6 +32,7 @@ services:
       # cookie de session doit être cross-site (SameSite=None + Secure).
       - key: SESSION_SAMESITE
         value: "none"
+      # Choisir un fournisseur réel dans Render, puis renseigner ses identifiants ci-dessous.
       - key: SMS_PROVIDER
         sync: false
       - key: TWILIO_ACCOUNT_SID
@@ -45,6 +46,12 @@ services:
       - key: AFRICASTALKING_API_KEY
         sync: false
       - key: AFRICASTALKING_SENDER_ID
+        sync: false
+      - key: INFOBIP_BASE_URL
+        sync: false
+      - key: INFOBIP_API_KEY
+        sync: false
+      - key: INFOBIP_SENDER
         sync: false
       - key: MOBILE_MONEY_PROVIDER
         value: api

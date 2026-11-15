@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useLanguage } from "@/lib/LanguageContext";
+import { CategoryIcon } from "@/components/products/category-icon";
 
 interface Product {
   id: number;
@@ -100,17 +101,6 @@ export default function ProductsPage() {
       (activeFilter === "Prix bas" && product.price_per_kg < 2500);
     return matchQuery && matchFilter;
   });
-
-  const getCategoryIcon = (category: string) => {
-    switch (category.toLowerCase()) {
-      case "legumes": return "🥦";
-      case "tubercules": return "🥔";
-      case "cereales": return "🌽";
-      case "fruits": return "🍌";
-      case "export": return "☕";
-      default: return "📦";
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -258,7 +248,7 @@ export default function ProductsPage() {
                         />
                       ) : (
                         <div className="text-6xl transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3">
-                          {getCategoryIcon(product.category)}
+                          <CategoryIcon category={product.category} className="h-9 w-9 text-muted-foreground/55" />
                         </div>
                       )}
 

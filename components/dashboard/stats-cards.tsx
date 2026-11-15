@@ -1,4 +1,4 @@
-import { TrendingUp, ShoppingCart, Package, Star } from "lucide-react";
+import { ShoppingCart, Package, Star, Wallet } from "lucide-react";
 import { formatBIF } from "@/lib/currency";
 
 export function StatsCards({ data }: { data: any }) {
@@ -6,62 +6,53 @@ export function StatsCards({ data }: { data: any }) {
     {
       label: "Revenus totaux",
       value: formatBIF(data.revenue),
-      sub: "+12% vs mois dernier",
-      trend: "up",
-      icon: TrendingUp,
-      color: "text-primary",
-      bg: "bg-primary/10",
+      icon: Wallet,
     },
     {
       label: "Commandes en cours",
       value: data.pending_orders.toString(),
-      sub: "À préparer aujourd'hui",
-      trend: "neutral",
+      sub: "À traiter",
       icon: ShoppingCart,
-      color: "text-accent-foreground",
-      bg: "bg-accent/30",
     },
     {
       label: "Produits actifs",
       value: data.active_products.toString(),
       sub: `Sur ${data.total_products} produits`,
-      trend: "neutral",
       icon: Package,
-      color: "text-primary",
-      bg: "bg-primary/10",
     },
     {
       label: "Note moyenne",
       value: `${data.rating} / 5`,
-      sub: "Basé sur les ventes",
-      trend: "up",
+      sub: "D'après les avis",
       icon: Star,
-      color: "text-accent-foreground",
-      bg: "bg-accent/30",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map((s) => (
-        <div
-          key={s.label}
-          className="bg-card rounded-2xl border border-border p-4 flex flex-col gap-3"
-        >
-          <div className="flex items-start justify-between">
-            <p className="text-xs font-medium text-muted-foreground leading-snug">{s.label}</p>
-            <div className={`w-9 h-9 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
-              <s.icon className={`w-4 h-4 ${s.color}`} />
+    <div className="grid grid-cols-2 border-y border-border bg-card lg:grid-cols-4">
+      {stats.map((stat, index) => {
+        const Icon = stat.icon;
+        return (
+          <div
+            key={stat.label}
+            className={[
+              "flex min-w-0 flex-col gap-3 p-4 sm:p-5",
+              index % 2 === 0 ? "border-r border-border lg:border-r-0" : "",
+              index < 2 ? "border-b border-border lg:border-b-0" : "",
+              index > 0 ? "lg:border-l lg:border-border" : "",
+            ].join(" ")}
+          >
+            <div className="flex items-center gap-2">
+              <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <p className="text-xs font-medium leading-snug text-muted-foreground">{stat.label}</p>
+            </div>
+            <div>
+              <p className="truncate text-xl font-semibold leading-none tabular-nums text-foreground">{stat.value}</p>
+              {stat.sub && <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>}
             </div>
           </div>
-          <div>
-            <p className="text-xl font-bold text-foreground leading-none">{s.value}</p>
-            <p className={`text-xs mt-1 ${s.trend === "up" ? "text-primary" : s.trend === "down" ? "text-destructive" : "text-muted-foreground"}`}>
-              {s.sub}
-            </p>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

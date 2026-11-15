@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api-config";
 import { useRequiredSession } from "@/lib/session";
 import { useLanguage } from "@/lib/LanguageContext";
 import { formatBIF } from "@/lib/currency";
+import { CategoryIcon } from "@/components/products/category-icon";
 
 export default function FarmerCooperativePage() {
   const { session } = useRequiredSession("fermier");
@@ -276,7 +277,7 @@ export default function FarmerCooperativePage() {
                             <Card key={p.id} className="border-border/50 hover:border-primary/30 transition-all rounded-3xl overflow-hidden group shadow-sm hover:shadow-md">
                                 <CardContent className="p-5 flex items-center gap-4">
                                     <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
-                                        {p.category === "cereales" ? "🌽" : p.category === "legumes" ? "🥦" : "🍌"}
+                                        <CategoryIcon category={p.category} className="h-8 w-8 text-muted-foreground/55" />
                                     </div>
                                     <div className="flex-1">
                                         <h4 className="font-black text-foreground">{p.name}</h4>

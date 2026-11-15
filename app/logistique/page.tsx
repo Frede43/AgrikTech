@@ -74,12 +74,12 @@ export default function LogistiquePage() {
     setAcceptMsg(null);
     try {
       await apiFetch(`/orders/${orderId}/accept`, { method: "POST" });
-      setAcceptMsg(lang === "fr" ? "✅ Commande acceptée ! Elle apparaît dans vos livraisons." : "✅ Commande yemewe! Iraba mu matangwa yawe.");
+      setAcceptMsg(lang === "fr" ? "Commande acceptée. Elle apparaît dans vos livraisons." : "Commande yemewe! Iraba mu matangwa yawe.");
       await fetchData();
     } catch (err: any) {
       const msg = err?.message || "";
       if (msg.includes("409") || msg.toLowerCase().includes("déjà")) {
-        setAcceptMsg(lang === "fr" ? "⚠️ Cette commande vient d'être prise par un autre livreur." : "⚠️ Uyu murimo wafashwe n'undi mushoferi.");
+        setAcceptMsg(lang === "fr" ? "Cette commande vient d'être prise par un autre livreur." : "Uyu murimo wafashwe n'undi mushoferi.");
       } else {
         setAcceptMsg(lang === "fr" ? "Impossible d'accepter cette commande." : "Ntivyashobotse kwemera uyu murimo.");
       }
