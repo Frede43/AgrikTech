@@ -32,9 +32,9 @@ services:
       # cookie de session doit être cross-site (SameSite=None + Secure).
       - key: SESSION_SAMESITE
         value: "none"
-      # Choisir un fournisseur réel dans Render, puis renseigner ses identifiants ci-dessous.
+      # Infobip est sélectionné ; renseigner ses identifiants dans l'environnement Render.
       - key: SMS_PROVIDER
-        sync: false
+        value: infobip
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN
