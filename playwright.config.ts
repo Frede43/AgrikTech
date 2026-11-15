@@ -77,6 +77,7 @@ export default defineConfig({
         BACKEND_HOST: PLAYWRIGHT_HOST,
         BACKEND_PORT: String(PLAYWRIGHT_BACKEND_PORT),
         FRONTEND_URL: frontendUrl,
+        ENVIRONMENT: "test",
         E2E_TEST_MODE: "true",
         // Base dédiée aux e2e (réinitialisée au démarrage), distincte de la base de dev.
         DATABASE_URL: "sqlite:///agriconnect.e2e.db",

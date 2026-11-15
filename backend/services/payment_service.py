@@ -15,19 +15,38 @@ class PaymentService:
     """
 
     @staticmethod
-    def process_order_payment_to_escrow(db: Session, order: models.Order) -> bool:
+    def process_order_payment_to_escrow(
+        db: Session,
+        order: models.Order,
+        provider_reference: Optional[str] = None,
+    ) -> bool:
         """
         Simule le retrait des fonds de l'acheteur (Lumicash/Ecocash) et
         marque la commande comme payée en Escrow.
         En production : Appel API Mobile Money ici.
         """
+        locked_order = db.query(models.Order).filter(
+            models.Order.id == order.id
+        ).populate_existing().with_for_update().first()
+        if not locked_order or locked_order.status not in ("PENDING_PAYMENT", "READY_FOR_PICKUP"):
+            return False
+
+        normalized_provider_reference = (provider_reference.strip() or None) if provider_reference else None
+        if normalized_provider_reference and db.query(models.TransactionLog.id).filter(
+            models.TransactionLog.provider_reference == normalized_provider_reference
+        ).first():
+            raise HTTPException(status_code=409, detail="Cette référence fournisseur est déjà rattachée à une autre transaction.")
+
         db.add(models.TransactionLog(
             user_id=order.buyer_id,
             order_id=order.id,
             amount=-(order.total_price or Decimal("0")),
             action="FUNDS_SENT_TO_ESCROW",
+            provider_reference=normalized_provider_reference,
         ))
-        order.status = "PAID_ESCROW"  # type: ignore
+        # READY_FOR_PICKUP peut être un ordre ancien affecté par l'admin avant
+        # le callback; conserver le livreur après confirmation du paiement.
+        locked_order.status = "READY_FOR_PICKUP" if locked_order.driver_id else "PAID_ESCROW"  # type: ignore
         # Le commit est délégué à l'appelant pour garantir l'atomicité
         return True
 
@@ -54,6 +73,12 @@ class PaymentService:
         product_total_ttc = (order.total_price or Decimal("0")) - delivery_fee
         subtotal_ht = order.subtotal_price or product_total_ttc
 
+        farmer = db.query(models.User).filter(
+            models.User.id == order.farmer_id
+        ).populate_existing().with_for_update().first()
+        if not farmer:
+            raise HTTPException(status_code=404, detail="Fermier non trouvé.")
+
         prior_completed_sales = db.query(models.Order).filter(
             models.Order.farmer_id == order.farmer_id,
             models.Order.status.in_(["delivered", "COMPLETED"]),
@@ -64,10 +89,6 @@ class PaymentService:
 
         commission_amount = subtotal_ht * commission_rate
         net_to_farmer = product_total_ttc - commission_amount
-
-        farmer = db.query(models.User).filter(models.User.id == order.farmer_id).first()
-        if not farmer:
-            raise HTTPException(status_code=404, detail="Fermier non trouvé.")
 
         farmer.balance += net_to_farmer  # type: ignore
 
@@ -114,7 +135,9 @@ class PaymentService:
         if delivery_fee <= 0 or not order.driver_id:
             return None
 
-        driver = db.query(models.User).filter(models.User.id == order.driver_id).first()
+        driver = db.query(models.User).filter(
+            models.User.id == order.driver_id
+        ).populate_existing().with_for_update().first()
         if not driver:
             return None
 
@@ -134,6 +157,7 @@ class PaymentService:
         db: Session,
         order: models.Order,
         cancelled_by: str = "system",
+        payment_failed: bool = False,
     ) -> dict:
         """
         Annule atomiquement une commande :
@@ -145,14 +169,27 @@ class PaymentService:
 
         Le commit est délégué à l'appelant pour garantir l'atomicité globale.
         """
+        locked_order = db.query(models.Order).filter(
+            models.Order.id == order.id
+        ).populate_existing().with_for_update().first()
+        if not locked_order:
+            raise HTTPException(status_code=404, detail="Commande introuvable.")
+        order = locked_order
+
         CANCELLABLE_STATUSES = [
-            "PENDING_PAYMENT",
             "PAID_ESCROW",
             "CONFIRMED",
             "READY_FOR_PICKUP",
             "PENDING",
         ]
+        if payment_failed:
+            CANCELLABLE_STATUSES.append("PENDING_PAYMENT")
         if str(order.status) not in CANCELLABLE_STATUSES:
+            if str(order.status) == "PENDING_PAYMENT":
+                raise HTTPException(
+                    status_code=409,
+                    detail="Le paiement est encore en cours. Attendez la confirmation de l'agrégateur avant d'annuler.",
+                )
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -162,41 +199,70 @@ class PaymentService:
             )
 
         refund_amount = Decimal("0")
-        qty_restored = float(str(order.quantity or 0))
 
         # ── 1. Restauration atomique du stock ───────────────────────────────
-        product = db.query(models.Product).filter(
-            models.Product.id == order.product_id
-        ).first()
+        order_items = (
+            db.query(models.OrderItem)
+            .filter(models.OrderItem.order_id == order.id)
+            .order_by(models.OrderItem.product_id)
+            .all()
+        )
+        quantities_by_product: dict[int, float] = {}
+        if order_items:
+            for item in order_items:
+                if item.product_id is None:
+                    continue
+                product_id = int(str(item.product_id))
+                quantity = float(str(item.quantity or 0))
+                quantities_by_product[product_id] = quantities_by_product.get(product_id, 0.0) + quantity
+        elif order.product_id is not None:
+            # Anciennes commandes mono-produit avant la table order_items.
+            quantities_by_product[int(str(order.product_id))] = float(str(order.quantity or 0))
 
-        if product and qty_restored > 0:
+        qty_restored = 0.0
+        for product_id in sorted(quantities_by_product):
+            quantity = quantities_by_product[product_id]
+            if quantity <= 0:
+                continue
+            product = db.query(models.Product).filter(
+                models.Product.id == product_id
+            ).populate_existing().with_for_update().first()
+            if not product:
+                continue
+
             qty_before = float(str(product.quantity_kg or 0.0))
-            qty_after = qty_before + qty_restored
-
+            qty_after = qty_before + quantity
             product.quantity_kg = qty_after  # type: ignore
+            qty_restored += quantity
 
-            db.add(models.StockMovement(
-                product_id=int(str(product.id)),
-                farmer_id=int(str(order.farmer_id)), # type: ignore
-                product_name_snapshot=str(product.name),
-                movement_type="order_cancelled",
-                quantity_delta=float(qty_restored),
-                quantity_before=qty_before,
-                quantity_after=qty_after,
-                unit=str(product.unit or "kg"),
-                reason=(
-                    f"Annulation commande "
-                    f"{utils.format_order_reference(int(order.id))} "  # type: ignore
-                    f"par {cancelled_by}."
-                ),
-            ))
+            movement_farmer_id = product.farmer_id or order.farmer_id
+            if movement_farmer_id is not None:
+                db.add(models.StockMovement(
+                    product_id=int(str(product.id)),
+                    farmer_id=int(str(movement_farmer_id)),
+                    product_name_snapshot=str(product.name),
+                    movement_type="order_cancelled",
+                    quantity_delta=quantity,
+                    quantity_before=qty_before,
+                    quantity_after=qty_after,
+                    unit=str(product.unit or "kg"),
+                    reason=(
+                        f"Annulation commande "
+                        f"{utils.format_order_reference(int(order.id))} "  # type: ignore
+                        f"par {cancelled_by}."
+                    ),
+                ))
 
-        # ── 2. Remboursement acheteur si fonds en escrow ────────────────────
-        if str(order.status) == "PAID_ESCROW" and order.total_price:
+        # ── 2. Remboursement acheteur si la collecte a été comptabilisée ───
+        payment_log = db.query(models.TransactionLog.id).filter(
+            models.TransactionLog.order_id == order.id,
+            models.TransactionLog.action == "FUNDS_SENT_TO_ESCROW",
+        ).first()
+        if payment_log and order.total_price:
             refund_amount = Decimal(str(order.total_price))
             buyer = db.query(models.User).filter(
                 models.User.id == order.buyer_id
-            ).first()
+            ).populate_existing().with_for_update().first()
             if buyer:
                 buyer.balance += refund_amount  # type: ignore
 

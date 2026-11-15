@@ -28,7 +28,7 @@ const sections: GuideSection[] = [
       <>
         <p>
           Depuis l&apos;accueil, choisissez <strong>Fermier</strong> puis renseignez votre numéro de téléphone.
-          Un code à 4 chiffres vous est envoyé par SMS : saisissez-le pour vous connecter, aucun mot de passe
+          Un code à 6 chiffres vous est envoyé par SMS : saisissez-le pour vous connecter, aucun mot de passe
           n&apos;est nécessaire.
         </p>
         <p>

@@ -122,6 +122,8 @@ class Order(Base):
     
     pickup_qr_token = Column(String, unique=True, index=True)
     delivery_otp = Column(String)
+    delivery_otp_attempts = Column(Integer, default=0, nullable=False)
+    delivery_otp_locked_until = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=utcnow_naive)
 
@@ -187,6 +189,7 @@ class TransactionLog(Base):
     action = Column(String) 
     amount = Column(Numeric(12, 2))
     timestamp = Column(DateTime, default=utcnow_naive)
+    provider_reference = Column(String, unique=True, nullable=True, index=True)
 
 
 class AdminAuditLog(Base):
@@ -408,3 +411,12 @@ class OtpCode(Base):
     expires_at = Column(DateTime, nullable=False)
     attempts = Column(Integer, default=0, nullable=False)
     last_sent_at = Column(DateTime, default=utcnow_naive, nullable=False)
+
+
+class RegistrationChallenge(Base):
+    """Preuve OTP éphémère à usage unique pour créer un compte."""
+    __tablename__ = "registration_challenges"
+    id = Column(Integer, primary_key=True, index=True)
+    phone_number = Column(String, unique=True, index=True, nullable=False)
+    token_hash = Column(String, unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)

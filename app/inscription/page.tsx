@@ -148,8 +148,9 @@ function SignupContent() {
         setRoleMismatch(null);
         try {
             const phoneNumber = `+257${phone}`;
-            await apiFetch(`/auth/request-otp?phone_number=${encodeURIComponent(phoneNumber)}`, {
+            await apiFetch("/auth/request-otp", {
                 method: "POST",
+                body: JSON.stringify({ phone_number: phoneNumber }),
             });
             setStep("otp");
         } catch (err: any) {
@@ -160,17 +161,15 @@ function SignupContent() {
     };
 
     const handleVerifyOtp = async () => {
-        if (otp.length < 4 || !isOnline) return;
+        if (otp.length < 6 || !isOnline) return;
         setLoading(true);
         setError("");
         try {
             const phoneNumber = `+257${phone}`;
-            const verification = await apiFetch(
-                `/auth/verify-otp?phone_number=${encodeURIComponent(phoneNumber)}&code=${encodeURIComponent(otp)}`,
-                {
-                    method: "POST",
-                },
-            ) as { registered?: boolean; user_id?: number | string; role?: string };
+            const verification = await apiFetch("/auth/verify-otp", {
+                method: "POST",
+                body: JSON.stringify({ phone_number: phoneNumber, code: otp }),
+            }) as { registered?: boolean; user_id?: number | string; role?: string; registration_token?: string };
 
             const directSession = parseAppSession(verification);
             if (directSession) {
@@ -185,6 +184,9 @@ function SignupContent() {
             }
 
             if (verification.registered === false) {
+                if (verification.registration_token) {
+                    sessionStorage.setItem(`agriconnect.registration.${phoneNumber}`, verification.registration_token);
+                }
                 router.push(`/inscription/profil?role=${role}&phone=${encodeURIComponent(phone)}`);
                 return;
             }
@@ -207,6 +209,9 @@ function SignupContent() {
                 return;
             }
 
+            if (verification.registration_token) {
+                sessionStorage.setItem(`agriconnect.registration.${phoneNumber}`, verification.registration_token);
+            }
             router.push(`/inscription/profil?role=${role}&phone=${encodeURIComponent(phone)}`);
         } catch (err: any) {
             setError(isLikelyNetworkError(err) ? copy.offlineErrorOtp : (err.message || copy.invalidOtp));
@@ -373,16 +378,16 @@ function SignupContent() {
 
                     <div className="space-y-6">
                         <div className="flex justify-center">
-                            <InputOTP maxLength={4} value={otp} onChange={setOtp}>
+                            <InputOTP maxLength={6} value={otp} onChange={setOtp}>
                                 <InputOTPGroup className="gap-2">
-                                    {[0, 1, 2, 3].map((i) => (
+                                    {[0, 1, 2, 3, 4, 5].map((i) => (
                                         <InputOTPSlot key={i} index={i} className="w-12 h-14 text-xl font-bold border-2 rounded-xl focus:border-primary transition-all" />
                                     ))}
                                 </InputOTPGroup>
                             </InputOTP>
                         </div>
 
-                        <Button onClick={handleVerifyOtp} disabled={otp.length < 4 || loading || !isOnline} className="w-full h-12 font-semibold">
+                        <Button onClick={handleVerifyOtp} disabled={otp.length < 6 || loading || !isOnline} className="w-full h-12 font-semibold">
                             {loading ? text.authVerifying : text.authVerifyButton}
                         </Button>
 

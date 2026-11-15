@@ -33,7 +33,7 @@ services:
       - key: SESSION_SAMESITE
         value: "none"
       - key: SMS_PROVIDER
-        value: console
+        sync: false
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN
@@ -47,18 +47,20 @@ services:
       - key: AFRICASTALKING_SENDER_ID
         sync: false
       - key: MOBILE_MONEY_PROVIDER
-        value: mock
+        value: api
       - key: MOBILE_MONEY_API_URL
         sync: false
       - key: MOBILE_MONEY_API_KEY
         sync: false
       - key: MOBILE_MONEY_WEBHOOK_SECRET
         sync: false
+      # Secret partagé requis pour lire les soldes ou commandes via USSD.
+      - key: USSD_WEBHOOK_SECRET
+        sync: false
       - key: ORS_API_KEY
         sync: false
-      # Stockage persistant des images produit et documents KYC (le disque
-      # local de ce service est réinitialisé à chaque redéploiement — voir
-      # backend/services/file_storage_service.py).
+      # Stockage distant : fichiers KYC privés, images produit publiques.
+      # Les nouveaux téléversements KYC échouent si ces clés sont absentes.
       - key: IMAGEKIT_PUBLIC_KEY
         sync: false
       - key: IMAGEKIT_PRIVATE_KEY

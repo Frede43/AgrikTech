@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
@@ -29,11 +29,33 @@ app = FastAPI(title="AgriConnect Burundi API", description="Backend pour le proj
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list(dict.fromkeys(config.FRONTEND_URLS + ["http://127.0.0.1:3000", "http://localhost:3000"])),
+    allow_origins=list(dict.fromkeys(
+        config.FRONTEND_URLS
+        + ([] if config.IS_PRODUCTION else ["http://127.0.0.1:3000", "http://localhost:3000"])
+    )),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def validate_browser_origin(request: Request, call_next):
+    # SameSite=None est requis pour le frontend distant, donc les mutations
+    # authentifiées vérifient aussi Origin (CORS seul ne bloque pas les
+    # soumissions HTML simples). Les webhooks sans cookie gardent leur secret.
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        origin = request.headers.get("origin")
+        allowed_origins = {value.rstrip("/") for value in config.FRONTEND_URLS}
+        if not config.IS_PRODUCTION:
+            allowed_origins.update({"http://127.0.0.1:3000", "http://localhost:3000"})
+        if origin and origin.rstrip("/") not in allowed_origins:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=403, content={"detail": "Origine non autorisée."})
+        if config.SESSION_COOKIE_NAME in request.cookies and not origin:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=403, content={"detail": "Origine requise pour cette requête."})
+    return await call_next(request)
 
 app.include_router(auth.router)
 app.include_router(market.router)
@@ -83,6 +105,15 @@ def health_check():
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 if not os.path.exists(STATIC_DIR):
     os.makedirs(STATIC_DIR)
+
+
+@app.api_route("/static/uploads/kyc/{filename:path}", methods=["GET", "HEAD"])
+def block_public_kyc_files(filename: str):
+    # Cette route précède le montage statique : aucune pièce d'identité ne peut
+    # être lue anonymement via une ancienne URL /static/uploads/kyc/... .
+    raise HTTPException(status_code=404, detail="Document introuvable.")
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")

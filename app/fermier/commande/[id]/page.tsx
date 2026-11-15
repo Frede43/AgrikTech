@@ -104,7 +104,7 @@ export default function FarmerOrderDetailPage() {
                 </p>
               </div>
               <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 w-full">
-                 <p className="text-3xl font-mono font-black tracking-[0.4em] select-all">{order.pickup_qr}</p>
+                 <p className="text-xl sm:text-2xl font-mono font-black tracking-widest break-all select-all">{order.pickup_qr}</p>
               </div>
             </div>
           </div>

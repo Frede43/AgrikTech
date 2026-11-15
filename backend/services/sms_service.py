@@ -1,4 +1,4 @@
-import random
+import secrets
 from typing import Optional
 
 import requests
@@ -124,7 +124,7 @@ class SMSService:
 
     @staticmethod
     def generate_otp() -> str:
-        return str(random.randint(1000, 9999))
+        return str(secrets.randbelow(900000) + 100000)
 
 
 sms_service = SMSService()

@@ -67,15 +67,31 @@ class MobileMoneyService:
             )
             if resp.status_code in (200, 201, 202):
                 data = resp.json()
+                if not isinstance(data, dict):
+                    return {"status": STATUS_PENDING, "provider_ref": None}
                 status = str(data.get("status", STATUS_PENDING)).upper()
                 if status not in (STATUS_SUCCESS, STATUS_PENDING, STATUS_FAILED):
                     status = STATUS_PENDING
-                return {"status": status, "provider_ref": data.get("provider_ref")}
+                provider_ref = data.get("provider_ref")
+                if isinstance(provider_ref, str):
+                    provider_ref = provider_ref.strip()
+                else:
+                    provider_ref = None
+                if provider_ref is not None and not (3 <= len(provider_ref) <= 120):
+                    provider_ref = None
+                # Une réponse SUCCESS sans référence unique ne doit pas débloquer
+                # la commande : le paiement reste à rapprocher manuellement.
+                if status == STATUS_SUCCESS and not provider_ref:
+                    status = STATUS_PENDING
+                return {"status": status, "provider_ref": provider_ref}
             print(f"[MOBILE MONEY] Erreur {resp.status_code} sur {endpoint}: {resp.text[:200]}")
-            return {"status": STATUS_FAILED, "provider_ref": None}
+            # Une erreur HTTP ne prouve pas que l'agrégateur n'a pas accepté la
+            # collecte. Attendre le webhook évite d'annuler une commande payée.
+            return {"status": STATUS_PENDING, "provider_ref": None}
         except requests.RequestException as exc:
             print(f"[MOBILE MONEY] Erreur réseau sur {endpoint}: {exc}")
-            return {"status": STATUS_FAILED, "provider_ref": None}
+            # Après un timeout, la requête peut avoir été traitée côté fournisseur.
+            return {"status": STATUS_PENDING, "provider_ref": None}
 
 
 mobile_money_service = MobileMoneyService()

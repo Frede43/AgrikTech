@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, cast
 from decimal import Decimal
-import uuid, random
-from datetime import datetime
+import uuid, secrets
+from datetime import datetime, timedelta
+import math
 
 import backend.models as models
 import backend.schemas as schemas
@@ -29,23 +30,42 @@ def create_order(order_payload: schemas.OrderCreate, request: Request, db: Sessi
 
     # 1. Valider les produits et s'assurer qu'ils appartiennent au même vendeur (Fermier ou Coopérative)
     items_to_create = []
+    requested_quantities = {}
+    for item in order_payload.items:
+        if not math.isfinite(item.quantity) or item.quantity <= 0:
+            raise HTTPException(status_code=400, detail="La quantité doit être un nombre positif.")
+        requested = requested_quantities.get(item.product_id, 0.0) + item.quantity
+        if not math.isfinite(requested):
+            raise HTTPException(status_code=400, detail="Quantité totale invalide.")
+        requested_quantities[item.product_id] = requested
+
+    products_by_id = {}
+    # Verrouiller les lignes en ordre stable évite les ventes simultanées du
+    # même stock et réduit les interblocages pour les paniers multi-produits.
+    for product_id in sorted(requested_quantities):
+        product = (
+            db.query(models.Product)
+            .filter(models.Product.id == product_id, models.Product.is_active == True)
+            .populate_existing()
+            .with_for_update()
+            .first()
+        )
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Produit {product_id} non trouvé.")
+        if cast(float, product.quantity_kg or 0) < requested_quantities[product_id]:
+            raise HTTPException(status_code=400, detail=f"Stock insuffisant pour {product.name}.")
+        products_by_id[product_id] = product
+
     farmer_id = None
     cooperative_id = None
     total_ttc = Decimal("0")
     total_vat = Decimal("0")
     total_ht = Decimal("0")
     
-    for item in order_payload.items:
-        product = db.query(models.Product).filter(
-            models.Product.id == item.product_id,
-            models.Product.is_active == True
-        ).first()
-        
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Produit {item.product_id} non trouvé.")
-        
-        if cast(float, product.quantity_kg) < item.quantity:
-            raise HTTPException(status_code=400, detail=f"Stock insuffisant pour {product.name}.")
+    for product_id, item_quantity in requested_quantities.items():
+        product = products_by_id[product_id]
+        if cast(Decimal, product.price_per_kg or 0) <= 0:
+            raise HTTPException(status_code=400, detail=f"Prix invalide pour {product.name}.")
         
         # Déterminer l'entité vendeuse (Priorité à la Coopérative si présente)
         if farmer_id is None and cooperative_id is None:
@@ -55,12 +75,14 @@ def create_order(order_payload: schemas.OrderCreate, request: Request, db: Sessi
             if product.cooperative_id:
                 if cooperative_id != product.cooperative_id:
                     raise HTTPException(status_code=400, detail="Tous les produits d'une commande collective doivent provenir de la même coopérative.")
+                if farmer_id != product.farmer_id:
+                    raise HTTPException(status_code=400, detail="Les produits d'une commande coopérative doivent être publiés par le même membre bénéficiaire du paiement.")
             else:
                 if farmer_id != product.farmer_id:
                     raise HTTPException(status_code=400, detail="Tous les produits d'une commande individuelle doivent provenir du même fermier.")
             
         # Calculs financiers pour cet item
-        price_ttc = Decimal(str(product.price_per_kg)) * Decimal(str(item.quantity))
+        price_ttc = Decimal(str(product.price_per_kg)) * Decimal(str(item_quantity))
         vat_rate = Decimal(str(product.vat_rate)) if product.vat_rate is not None else Decimal("0.18")
         is_taxable_val = product.is_taxable
         
@@ -73,7 +95,7 @@ def create_order(order_payload: schemas.OrderCreate, request: Request, db: Sessi
         
         items_to_create.append({
             "product": product,
-            "quantity": item.quantity,
+            "quantity": item_quantity,
             "price_at_order": product.price_per_kg
         })
 
@@ -96,8 +118,8 @@ def create_order(order_payload: schemas.OrderCreate, request: Request, db: Sessi
         delivery_fee=delivery_fee,
         invoice_number=f"FAC-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}",
         status="PENDING_PAYMENT",
-        pickup_qr_token=f"QR-{uuid.uuid4().hex[:6].upper()}",
-        delivery_otp=str(random.randint(1000, 9999))
+        pickup_qr_token=f"QR-{secrets.token_hex(6).upper()}",
+        delivery_otp=str(secrets.randbelow(900000) + 100000)
     )
     db.add(db_order)
     db.flush()
@@ -113,13 +135,28 @@ def create_order(order_payload: schemas.OrderCreate, request: Request, db: Sessi
         db.add(order_item)
 
         # Déduction stock
-        it["product"].quantity_kg = cast(float, it["product"].quantity_kg) - it["quantity"]
+        updated = db.query(models.Product).filter(
+            models.Product.id == it["product"].id,
+            models.Product.is_active == True,
+            models.Product.quantity_kg >= it["quantity"],
+        ).update(
+            {models.Product.quantity_kg: models.Product.quantity_kg - it["quantity"]},
+            synchronize_session=False,
+        )
+        if updated != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail=f"Le stock de {it['product'].name} vient de changer.")
+        db.refresh(it["product"])
 
     # Champs hérités mono-produit : utilisés par l'historique des transactions
     # et par la restauration de stock lors d'une annulation.
     if len(items_to_create) == 1:
         db_order.product_id = items_to_create[0]["product"].id
         db_order.quantity = items_to_create[0]["quantity"]
+
+    # Persister la commande et la réservation de stock avant l'appel externe :
+    # le webhook peut arriver dès que l'agrégateur accepte la collecte.
+    db.commit()
 
     # 4. Encaisser via mobile money. En mode "mock" (défaut) le paiement est
     # immédiat ; en mode "api" la commande reste PENDING_PAYMENT jusqu'à la
@@ -130,11 +167,29 @@ def create_order(order_payload: schemas.OrderCreate, request: Request, db: Sessi
         cast(str, db_order.invoice_number),
     )
     if collection["status"] == STATUS_FAILED:
-        db.rollback()
-        raise HTTPException(status_code=502, detail="Le paiement mobile money a échoué. Réessayez.")
+        current_order = db.query(models.Order).filter(
+            models.Order.id == db_order.id
+        ).populate_existing().with_for_update().first()
+        if current_order and current_order.status == "PENDING_PAYMENT":
+            payment_service.cancel_order_and_refund(
+                db,
+                current_order,
+                cancelled_by="mobile_money_initiation_failed",
+                payment_failed=True,
+            )
+            db.commit()
+            raise HTTPException(status_code=502, detail="Le paiement mobile money a échoué. Réessayez.")
+        if not current_order or current_order.status not in {
+            "PAID_ESCROW", "CONFIRMED", "READY_FOR_PICKUP", "PICKED_UP", "COMPLETED"
+        }:
+            raise HTTPException(status_code=502, detail="Le paiement mobile money a échoué. Réessayez.")
     if collection["status"] == STATUS_SUCCESS:
-        payment_service.process_order_payment_to_escrow(db, db_order)
-    db.commit()
+        payment_service.process_order_payment_to_escrow(
+            db,
+            db_order,
+            collection.get("provider_ref"),
+        )
+        db.commit()
     
     # Recharger avec les relations pour le response_model
     order_final = (
@@ -152,7 +207,6 @@ def create_order(order_payload: schemas.OrderCreate, request: Request, db: Sessi
 @router.get("/logistics")
 def get_logistics_orders(
     request: Request,
-    driver_id: Optional[int] = Query(None),
     mode: Optional[str] = Query(None),  # "pool" | "mine"
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db)
@@ -163,23 +217,35 @@ def get_logistics_orders(
     Sans mode    → retro-compat: toutes les commandes (usage admin uniquement)
     """
     user = utils.get_authenticated_user(request, db)
-    # distance logic depends on 'user' being defined
+    if not user:
+        raise HTTPException(status_code=401, detail="Session requise.")
+    if not utils.user_has_role(user, "logistique"):
+        raise HTTPException(status_code=403, detail="Accès réservé aux livreurs.")
+    if mode not in ("pool", "mine"):
+        raise HTTPException(status_code=400, detail="Choisissez le mode pool ou mine.")
+
     query = db.query(models.Order).options(
         joinedload(models.Order.items).joinedload(models.OrderItem.product),
         joinedload(models.Order.farmer),
         joinedload(models.Order.driver),
-    )
+    ).filter(models.Order.id.in_(
+        db.query(models.TransactionLog.order_id).filter(
+            models.TransactionLog.action == "FUNDS_SENT_TO_ESCROW",
+            models.TransactionLog.order_id.isnot(None),
+        )
+    ))
 
     if mode == "pool":
         # Commandes payées/confirmées mais sans livreur assigné
         query = query.filter(
             models.Order.driver_id.is_(None),
-            models.Order.status.in_(["PAID_ESCROW", "PENDING_PAYMENT", "CONFIRMED", "READY_FOR_PICKUP"])
+            models.Order.status.in_(["PAID_ESCROW", "CONFIRMED", "READY_FOR_PICKUP"])
         )
-    elif mode == "mine" and driver_id:
-        # Commandes assignées à ce livreur spécifique
-        query = query.filter(models.Order.driver_id == driver_id)
-    elif status:
+    else:
+        # La portée « mes commandes » vient de la session, jamais du client.
+        query = query.filter(models.Order.driver_id == user.id)
+
+    if status:
         query = query.filter(models.Order.status.in_(order_service.get_query_statuses(status)))
 
     results = []
@@ -212,8 +278,6 @@ def get_logistics_orders(
             "distance": utils.format_distance_label(utils.calculate_road_distance_km_sync(farmer, user) or utils.calculate_distance_km(farmer, user)) if user else "—",
             "pickupTime": o.created_at.strftime("%Hh%M") if o.created_at is not None else "—",
             "priority": "high" if o.status in ["CONFIRMED", "READY_FOR_PICKUP"] else "medium",
-            "pickup_qr": o.pickup_qr_token or "—",
-            "delivery_otp": o.delivery_otp or "—",
             "driver_id": o.driver_id,
             "driver_name": driver.name if driver else None,
         })
@@ -221,7 +285,13 @@ def get_logistics_orders(
 
 
 @router.get("/buyer/{buyer_id}", response_model=List[dict])
-def get_buyer_orders(buyer_id: int, db: Session = Depends(get_db)):
+def get_buyer_orders(buyer_id: int, request: Request, db: Session = Depends(get_db)):
+    user = utils.get_authenticated_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Session requise.")
+    if user.id != buyer_id and not utils.user_has_role(user, "admin"):
+        raise HTTPException(status_code=403, detail="Accès réservé à l'acheteur concerné.")
+
     orders = (
         db.query(models.Order)
         .options(
@@ -270,7 +340,6 @@ def get_buyer_orders(buyer_id: int, db: Session = Depends(get_db)):
             "total": float(cast(Decimal, o.total_price)) if o.total_price is not None else 0.0,
             "totalWeight": f"{total_weight} kg",
             "estimatedDelivery": "Sous 24h",
-            "pickup_qr": o.pickup_qr_token or "—",
             "delivery_otp": o.delivery_otp or "—",
         })
 
@@ -305,7 +374,7 @@ def get_order_detail(order_id: int, request: Request, db: Session = Depends(get_
     is_admin = utils.user_has_role(user, "admin")
     is_buyer = cast(int, order.buyer_id) == user.id
     is_farmer = cast(int, order.farmer_id) == user.id
-    is_driver = (cast(int, order.driver_id) == user.id) if order.driver_id is not None else utils.user_has_role(user, "logistique")
+    is_driver = utils.user_has_role(user, "logistique") and order.driver_id == user.id
 
     if not (is_admin or is_buyer or is_farmer or is_driver):
         raise HTTPException(status_code=403, detail="Accès non autorisé à cette commande.")
@@ -353,56 +422,110 @@ def get_order_detail(order_id: int, request: Request, db: Session = Depends(get_
         "instructions": "Fragile - Manipuler avec soin" if any("tomate" in it['name'].lower() for it in items_data) else "Livraison standard",
         "total": float(cast(Decimal, order.total_price)),
         "placedAt": order.created_at.strftime("%d/%m/%Y à %Hh%M") if order.created_at else "—",
-        "pickup_qr": order.pickup_qr_token or "—",
-        "delivery_otp": order.delivery_otp or "—"
+        "pickup_qr": (order.pickup_qr_token or "—") if (is_admin or is_farmer) else None,
+        "delivery_otp": (order.delivery_otp or "—") if (is_admin or is_buyer) else None,
     }
 
 
 
 @router.post("/{order_id}/accept")
-def accept_order(order_id: int, driver_id: int, request: Request, db: Session = Depends(get_db)):
+def accept_order(order_id: int, request: Request, db: Session = Depends(get_db)):
     """Un livreur prend en charge une commande sans livreur assigné."""
     user = utils.get_authenticated_user(request, db)
     if not user or not utils.user_has_role(user, "logistique"):
         raise HTTPException(status_code=403, detail="Accès réservé aux livreurs.")
 
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    order = (
+        db.query(models.Order)
+        .filter(models.Order.id == order_id)
+        .populate_existing()
+        .with_for_update()
+        .first()
+    )
     if not order:
         raise HTTPException(status_code=404, detail="Commande introuvable.")
+    payment_exists = db.query(models.TransactionLog.id).filter(
+        models.TransactionLog.order_id == order.id,
+        models.TransactionLog.action == "FUNDS_SENT_TO_ESCROW",
+    ).first()
+    if not payment_exists:
+        raise HTTPException(status_code=409, detail="Le paiement de cette commande doit être rapproché avant la collecte.")
     if order.driver_id is not None:
         raise HTTPException(status_code=409, detail="Cette commande a déjà été prise en charge par un autre livreur.")
-    if order.status not in ["PAID_ESCROW", "PENDING_PAYMENT", "CONFIRMED", "READY_FOR_PICKUP"]:
+    if order.status not in ["PAID_ESCROW", "CONFIRMED", "READY_FOR_PICKUP"]:
         raise HTTPException(status_code=400, detail="Cette commande n'est pas disponible à la collecte.")
 
-    order.driver_id = user.id # type: ignore
-    order.status = "READY_FOR_PICKUP" # type: ignore
+    updated = db.query(models.Order).filter(
+        models.Order.id == order_id,
+        models.Order.driver_id.is_(None),
+        models.Order.status.in_(["PAID_ESCROW", "CONFIRMED", "READY_FOR_PICKUP"]),
+    ).update(
+        {models.Order.driver_id: user.id, models.Order.status: "READY_FOR_PICKUP"},
+        synchronize_session=False,
+    )
+    if updated != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Cette commande vient d'être prise en charge.")
     db.commit()
     return {"message": "Commande acceptée. Bonne livraison !", "order_id": order.id}
 
 
 @router.post("/{order_id}/pickup")
-def pickup_order(order_id: int, qr_token: str, driver_id: int, db: Session = Depends(get_db)):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+def pickup_order(order_id: int, payload: schemas.OrderPickupRequest, request: Request, db: Session = Depends(get_db)):
+    user = utils.get_authenticated_user(request, db)
+    if not user or not utils.user_has_role(user, "logistique"):
+        raise HTTPException(status_code=403, detail="Accès réservé aux livreurs.")
+
+    order = db.query(models.Order).filter(models.Order.id == order_id).with_for_update().first()
     if not order or not order_service.is_available_for_pickup(str(order.status)):
         raise HTTPException(status_code=400, detail="Commande non disponible pour collecte.")
-    if order.pickup_qr_token != qr_token:
+    payment_exists = db.query(models.TransactionLog.id).filter(
+        models.TransactionLog.order_id == order.id,
+        models.TransactionLog.action == "FUNDS_SENT_TO_ESCROW",
+    ).first()
+    if not payment_exists:
+        raise HTTPException(status_code=409, detail="Le paiement doit être rapproché avant la collecte.")
+    if order.driver_id != user.id:
+        raise HTTPException(status_code=403, detail="Vous devez être le livreur assigné.")
+    if order.pickup_qr_token != payload.qr_token:
         raise HTTPException(status_code=403, detail="QR Code invalide.")
-    # Vérifier que c'est bien le livreur assigné
-    if order.driver_id is not None and int(str(order.driver_id)) != driver_id:
-        raise HTTPException(status_code=403, detail="Vous n'êtes pas le livreur assigné à cette commande.")
 
     order.status = "PICKED_UP" # type: ignore
-    order.driver_id = int(driver_id) # type: ignore
     db.commit()
     return {"message": "Collecté."}
 
 
 @router.post("/{order_id}/deliver")
-def deliver_order(order_id: int, otp_code: str, db: Session = Depends(get_db)):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+def deliver_order(order_id: int, payload: schemas.OrderDeliveryRequest, request: Request, db: Session = Depends(get_db)):
+    user = utils.get_authenticated_user(request, db)
+    if not user or not utils.user_has_role(user, "logistique"):
+        raise HTTPException(status_code=403, detail="Accès réservé aux livreurs.")
+
+    order = db.query(models.Order).filter(models.Order.id == order_id).with_for_update().first()
     if not order or not order_service.is_in_delivery_phase(str(order.status)):
         raise HTTPException(status_code=400, detail="État de livraison invalide.")
-    if order.delivery_otp != otp_code:
+    payment_exists = db.query(models.TransactionLog.id).filter(
+        models.TransactionLog.order_id == order.id,
+        models.TransactionLog.action == "FUNDS_SENT_TO_ESCROW",
+    ).first()
+    if not payment_exists:
+        raise HTTPException(status_code=409, detail="Le paiement doit être rapproché avant la livraison.")
+    if order.driver_id != user.id:
+        raise HTTPException(status_code=403, detail="Vous n'êtes pas le livreur assigné.")
+
+    now = utils.utcnow_naive()
+    if order.delivery_otp_locked_until and order.delivery_otp_locked_until > now:
+        raise HTTPException(status_code=429, detail="Trop de codes invalides. Réessayez dans 15 minutes.")
+    if order.delivery_otp_locked_until and order.delivery_otp_locked_until <= now:
+        order.delivery_otp_attempts = 0
+        order.delivery_otp_locked_until = None
+
+    if order.delivery_otp != payload.otp_code:
+        order.delivery_otp_attempts = int(order.delivery_otp_attempts or 0) + 1
+        if order.delivery_otp_attempts >= 5:
+            order.delivery_otp_locked_until = now + timedelta(minutes=15)
+            order.delivery_otp_attempts = 0
+        db.commit()
         raise HTTPException(status_code=403, detail="Code OTP de livraison invalide.")
 
     order.status = "COMPLETED" # type: ignore
@@ -427,6 +550,7 @@ def cancel_order(order_id: int, request: Request, db: Session = Depends(get_db))
     order = (
         db.query(models.Order)
         .filter(models.Order.id == order_id)
+        .with_for_update()
         .first()
     )
     if not order:

@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import hashlib
+import hmac
 import os
+import time
+from urllib.parse import urlparse
 
 import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
 from backend.database import get_db
@@ -14,9 +19,19 @@ router = APIRouter(
     tags=["Users & Profiles"]
 )
 
-KYC_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads", "kyc")
+KYC_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "private_uploads", "kyc")
+LEGACY_KYC_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads", "kyc")
 KYC_ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "pdf"}
 KYC_MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 Mo
+
+
+def _private_kyc_filename_for_user(filename: str, user_id: int) -> bool:
+    return (
+        os.path.basename(filename) == filename
+        and filename.startswith(f"kyc_{user_id}_")
+        and "/" not in filename
+        and "\\" not in filename
+    )
 
 @router.get("", response_model=List[schemas.User])
 @router.get("/", response_model=List[schemas.User])
@@ -114,6 +129,8 @@ def update_user_profile(user_id: int, payload: schemas.UserUpdate, request: Requ
         update_data.pop("balance", None)
         update_data.pop("is_active", None)
         update_data.pop("role", None)
+        for field in ("nationality", "id_number", "id_document_url", "kyc_status", "kyc_notes", "kyc_reviewed_at"):
+            update_data.pop(field, None)
 
     for field, value in update_data.items():
         setattr(user, field, value)
@@ -133,26 +150,121 @@ async def upload_kyc_document(request: Request, file: UploadFile = File(...), db
     current_user = utils.get_authenticated_user(request, db)
     if not current_user:
         raise HTTPException(status_code=401)
+    if config.IS_PRODUCTION and not file_storage_service.is_imagekit_configured():
+        raise HTTPException(status_code=503, detail="Le stockage privé des documents KYC n'est pas configuré.")
 
     original_name = file.filename or ""
     extension = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
     if extension not in KYC_ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Format non autorisé (jpg, jpeg, png ou pdf uniquement).")
 
-    contents = await file.read()
+    contents = await file.read(KYC_MAX_FILE_SIZE + 1)
     if len(contents) > KYC_MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="Fichier trop volumineux (5 Mo maximum).")
 
+    signatures = {
+        "jpg": ("image/jpeg", contents.startswith(b"\xff\xd8\xff")),
+        "jpeg": ("image/jpeg", contents.startswith(b"\xff\xd8\xff")),
+        "png": ("image/png", contents.startswith(b"\x89PNG\r\n\x1a\n")),
+        "pdf": ("application/pdf", contents.startswith(b"%PDF-")),
+    }
+    detected = signatures.get(extension)
+    if not detected or not detected[1]:
+        raise HTTPException(status_code=400, detail="Le contenu du fichier ne correspond pas à son format.")
+
     document_url = file_storage_service.store_uploaded_file(
         contents,
-        original_name or f"piece.{extension}",
+        f"piece.{extension}",
         prefix=f"kyc_{current_user.id}",
         folder="/kyc/",
         local_dir=KYC_UPLOAD_DIR,
-        local_url_prefix="/static/uploads/kyc",
+        local_url_prefix="",
+        private=True,
     )
 
     return {"document_url": document_url}
+
+
+@router.get("/{user_id}/kyc/document")
+def get_kyc_document(user_id: int, request: Request, db: Session = Depends(get_db)):
+    """Sert une pièce KYC uniquement à son propriétaire ou à un administrateur."""
+    current_user = utils.get_authenticated_user(request, db)
+    if not current_user or (current_user.id != user_id and not utils.user_has_role(current_user, "admin")):
+        raise HTTPException(status_code=403, detail="Accès non autorisé au document KYC.")
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user or not user.id_document_url:
+        raise HTTPException(status_code=404, detail="Document KYC introuvable.")
+
+    reference = str(user.id_document_url)
+    if reference.startswith("local-private:"):
+        filename = reference.removeprefix("local-private:")
+        if not _private_kyc_filename_for_user(filename, user_id):
+            raise HTTPException(status_code=404, detail="Document KYC introuvable.")
+        path = os.path.join(KYC_UPLOAD_DIR, filename)
+        if not os.path.isfile(path):
+            raise HTTPException(status_code=404, detail="Document KYC introuvable.")
+        return FileResponse(
+            path,
+            content_disposition_type="inline",
+            headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+        )
+
+    if reference.startswith("imagekit-private:"):
+        file_path = reference.removeprefix("imagekit-private:")
+        if not config.IMAGEKIT_PRIVATE_KEY or not config.IMAGEKIT_URL_ENDPOINT:
+            raise HTTPException(status_code=503, detail="Stockage KYC indisponible.")
+        filename = file_path.removeprefix("/kyc/")
+        if not file_path.startswith("/kyc/") or not _private_kyc_filename_for_user(filename, user_id):
+            raise HTTPException(status_code=404, detail="Document KYC introuvable.")
+        expiry = int(time.time()) + 300
+        signature = hmac.new(
+            config.IMAGEKIT_PRIVATE_KEY.encode("utf-8"),
+            f"{file_path}{expiry}".encode("utf-8"),
+            hashlib.sha1,
+        ).hexdigest()
+        signed_url = (
+            f"{config.IMAGEKIT_URL_ENDPOINT.rstrip('/')}{file_path}"
+            f"?ik-t={expiry}&ik-s={signature}"
+        )
+        return RedirectResponse(
+            signed_url,
+            status_code=302,
+            headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"},
+        )
+
+    # Compatibilité avec les documents locaux déjà déposés avant le déplacement
+    # hors du dossier public. Le montage /static ci-dessous est, lui, bloqué.
+    parsed = urlparse(reference)
+    if parsed.path.startswith("/static/uploads/kyc/"):
+        filename = os.path.basename(parsed.path)
+        if not _private_kyc_filename_for_user(filename, user_id):
+            raise HTTPException(status_code=404, detail="Document KYC introuvable.")
+        path = os.path.join(LEGACY_KYC_UPLOAD_DIR, filename)
+        if os.path.isfile(path):
+            return FileResponse(
+                path,
+                content_disposition_type="inline",
+                headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+            )
+
+    # Les anciens fichiers ImageKit restent potentiellement publics côté CDN;
+    # cette redirection ne peut pas révoquer leur URL historique.
+    if parsed.scheme == "https" and parsed.hostname and config.IMAGEKIT_URL_ENDPOINT:
+        expected = urlparse(config.IMAGEKIT_URL_ENDPOINT)
+        filename = os.path.basename(parsed.path)
+        if (
+            parsed.hostname == expected.hostname
+            and parsed.path.startswith("/kyc/")
+            and _private_kyc_filename_for_user(filename, user_id)
+        ):
+            return RedirectResponse(
+                reference,
+                status_code=302,
+                headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"},
+            )
+
+    raise HTTPException(status_code=404, detail="Document KYC introuvable.")
 
 @router.post("/kyc/submit", response_model=schemas.User)
 def submit_kyc(payload: schemas.UserKycSubmit, request: Request, db: Session = Depends(get_db)):
@@ -168,8 +280,24 @@ def submit_kyc(payload: schemas.UserKycSubmit, request: Request, db: Session = D
     if not user:
         raise HTTPException(status_code=404)
 
+    submitted_reference = payload.id_document_url.strip()
+    if submitted_reference != user.id_document_url:
+        is_owned_private_upload = False
+        if submitted_reference.startswith("local-private:"):
+            is_owned_private_upload = _private_kyc_filename_for_user(
+                submitted_reference.removeprefix("local-private:"), current_user.id
+            )
+        elif submitted_reference.startswith("imagekit-private:"):
+            candidate_path = submitted_reference.removeprefix("imagekit-private:")
+            if candidate_path.startswith("/kyc/"):
+                is_owned_private_upload = _private_kyc_filename_for_user(
+                    candidate_path.removeprefix("/kyc/"), current_user.id
+                )
+        if not is_owned_private_upload:
+            raise HTTPException(status_code=400, detail="Le document doit provenir de votre téléversement KYC.")
+
     user.id_number = str(payload.id_number) # type: ignore
-    user.id_document_url = str(payload.id_document_url) # type: ignore
+    user.id_document_url = submitted_reference # type: ignore
     user.nationality = str(payload.nationality) # type: ignore
     user.nif_number = str(payload.nif_number) if payload.nif_number else None # type: ignore
     user.kyc_status = str("pending") # type: ignore

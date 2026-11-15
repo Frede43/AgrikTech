@@ -25,8 +25,6 @@ interface LogisticsMission {
   priority: string;
   buyer: string;
   buyer_address: string;
-  pickup_qr: string;
-  delivery_otp: string;
 }
 
 export default function ValidationPage() {
@@ -46,7 +44,7 @@ export default function ValidationPage() {
     if (!ready || !session) return;
 
     setLoading(true);
-    apiFetch("/orders/logistics")
+    apiFetch(`/orders/logistics?mode=mine&driver_id=${session.userId}`)
       .then((data) => {
         setMissions(Array.isArray(data) ? data : []);
         setError(null);

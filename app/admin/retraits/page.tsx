@@ -136,8 +136,10 @@ export default function AdminWithdrawalsPage() {
       processing: "Traitement",
       waitingDecision: "En attente de décision",
       adminNote: "Note admin",
+      referenceLabel: "Référence de paiement manuel (obligatoire pour approuver)",
       auditHistory: "Historique / audit",
-      notePlaceholder: "Note admin optionnelle (preuve reçue, canal validé, motif de rejet...)",
+      notePlaceholder: "Référence de transaction obligatoire pour confirmer le paiement manuel; motif de rejet sinon.",
+      referenceRequired: "Saisissez la référence du paiement manuel avant de terminer le retrait.",
       approve: "Approuver le retrait",
       reject: "Rejeter la demande",
     },
@@ -169,8 +171,10 @@ export default function AdminWithdrawalsPage() {
       processing: "Itunganywa",
       waitingDecision: "Birindiriye ingingo",
       adminNote: "Iciyumviro ca admin",
+      referenceLabel: "Nimero y'ikimenyamenya c'ukwishura (ikenewe kugira wemeze)",
       auditHistory: "Amateka / igenzura",
-      notePlaceholder: "Iciyumviro ca admin kidategerezwa (ikimenyamenya, uburyo bwemejwe, imvo yo guhakanwa...)",
+      notePlaceholder: "Andika nimero y'ikimenyamenya c'ukuri wishuye kugira urangize kubikuza.",
+      referenceRequired: "Andika nimero y'ikimenyamenya c'ukuri wishuye imbere yo kurangiza.",
       approve: "Emeza kubikuza",
       reject: "Hakana ubusabe",
     },
@@ -232,6 +236,10 @@ export default function AdminWithdrawalsPage() {
       }
 
       const note = (notes[withdrawal.dbId] || "").trim();
+      if (action === "approve" && note.length < 3) {
+        setError(copy.referenceRequired);
+        return;
+      }
       setActionKey(`${action}-${withdrawal.dbId}`);
 
       try {
@@ -239,7 +247,7 @@ export default function AdminWithdrawalsPage() {
           method: "POST",
           body: JSON.stringify({
             admin_user_id: session.userId,
-            ...(note ? { note } : {}),
+            ...(action === "approve" ? { transaction_reference: note } : note ? { note } : {}),
           }),
         });
         setNotes((prev) => {
@@ -256,7 +264,7 @@ export default function AdminWithdrawalsPage() {
         setActionKey(null);
       }
     },
-    [copy.sessionError, copy.updateError, loadWithdrawals, notes, session],
+    [copy.referenceRequired, copy.sessionError, copy.updateError, loadWithdrawals, notes, session],
   );
 
   if (!ready || loading) {
@@ -418,6 +426,7 @@ export default function AdminWithdrawalsPage() {
                 {withdrawal.status === "pending" && (
                   <div className="space-y-3">
                     <textarea
+                      aria-label={copy.referenceLabel}
                       value={notes[withdrawal.dbId] ?? ""}
                       onChange={(event) =>
                         setNotes((prev) => ({

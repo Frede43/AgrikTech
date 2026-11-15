@@ -76,7 +76,7 @@ export const t: Record<Lang, Record<string, string>> = {
         signupRoleBuyer: "Je suis un Acheteur",
         signupRoleLogistics: "Je suis un Livreur",
         authOtpCode: "Code de vérification",
-        authOtpSentTo: "Un code à 4 chiffres a été envoyé au",
+        authOtpSentTo: "Un code à 6 chiffres a été envoyé au",
         authVerifyButton: "Valider le code",
         authResendCode: "Renvoyer le code ou changer de numéro",
         authVerifying: "Vérification...",

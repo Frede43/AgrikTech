@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional, cast, Any
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
 from backend.database import get_db
+from backend.services.payment_service import payment_service
 
 router = APIRouter(
     prefix="/admin",
@@ -138,7 +140,7 @@ def list_withdrawals(request: Request, db: Session = Depends(get_db)):
 @router.post("/withdrawals/{withdrawal_id}/approve/")
 def approve_withdrawal(
     withdrawal_id: int,
-    payload: schemas.AdminActionRequest,
+    payload: schemas.AdminWithdrawalApproveRequest,
     request: Request,
     db: Session = Depends(get_db)
 ):
@@ -146,29 +148,35 @@ def approve_withdrawal(
     Approuve manuellement une demande de retrait.
     """
     admin = check_admin_auth(request, db)
-    w = db.query(models.WithdrawalRequest).filter(models.WithdrawalRequest.id == withdrawal_id).first()
+    w = db.query(models.WithdrawalRequest).filter(
+        models.WithdrawalRequest.id == withdrawal_id
+    ).with_for_update().first()
     if not w:
         raise HTTPException(status_code=404, detail="Demande de retrait introuvable")
     
     if w.status != "pending":
         raise HTTPException(status_code=400, detail="Ce retrait a déjà été traité")
+
+    transaction_reference = payload.transaction_reference.strip()
+    if len(transaction_reference) < 3 or len(transaction_reference) > 120:
+        raise HTTPException(status_code=400, detail="Saisissez une référence de paiement valide.")
         
     w = cast(models.WithdrawalRequest, w)
     w.status = str("completed") # type: ignore
     w.processed_at = utils.utcnow_naive() # type: ignore
     w.processed_by_user_id = int(str(admin.id)) # type: ignore
-    w.note = str(payload.note) if payload.note else None # type: ignore
+    w.note = f"Paiement manuel confirmé. Référence : {transaction_reference}" # type: ignore
     
     db.add(models.AdminAuditLog(
         admin_user_id=admin.id,
         action="WITHDRAWAL_APPROVED",
         entity_type="withdrawal",
         entity_id=w.id,
-        detail=f"Retrait approuvé. Note: {payload.note}"
+        detail=f"Retrait payé manuellement. Référence : {transaction_reference}"
     ))
     
     db.commit()
-    return {"message": "Retrait marqué comme terminé"}
+    return {"message": "Retrait payé manuellement et marqué comme terminé."}
 
 @router.post("/withdrawals/{withdrawal_id}/reject")
 @router.post("/withdrawals/{withdrawal_id}/reject/")
@@ -182,7 +190,9 @@ def reject_withdrawal(
     Rejette une demande de retrait et recrédite l'ikigega de l'utilisateur.
     """
     admin = check_admin_auth(request, db)
-    w = db.query(models.WithdrawalRequest).filter(models.WithdrawalRequest.id == withdrawal_id).first()
+    w = db.query(models.WithdrawalRequest).filter(
+        models.WithdrawalRequest.id == withdrawal_id
+    ).with_for_update().first()
     if not w:
         raise HTTPException(status_code=404, detail="Demande de retrait introuvable")
         
@@ -190,8 +200,9 @@ def reject_withdrawal(
         raise HTTPException(status_code=400, detail="Ce retrait a déjà été traité")
         
     # Recréditer l'utilisateur
-    if w.user:
-        w.user.balance += w.amount
+    user = db.query(models.User).filter(models.User.id == w.user_id).with_for_update().first()
+    if user:
+        user.balance += w.amount
         db.add(models.TransactionLog(
             user_id=w.user_id,
             action="withdrawal_rejected",
@@ -555,9 +566,13 @@ def admin_assign_driver(
     """Assigne ou ré-assigne (ou désassigne) un livreur à une commande."""
     admin = check_admin_auth(request, db)
 
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    order = db.query(models.Order).filter(
+        models.Order.id == order_id
+    ).populate_existing().with_for_update().first()
     if not order:
         raise HTTPException(status_code=404, detail="Commande introuvable.")
+    if order.status == "PENDING_PAYMENT":
+        raise HTTPException(status_code=409, detail="Attendez la confirmation du paiement avant d'affecter un livreur.")
 
     old_driver_id = order.driver_id
     new_driver = None
@@ -571,7 +586,7 @@ def admin_assign_driver(
             raise HTTPException(status_code=404, detail="Livreur introuvable ou rôle incorrect.")
 
     order.driver_id = int(str(driver_id)) if driver_id else None # type: ignore
-    if driver_id is not None and order.status in ["PAID_ESCROW", "PENDING_PAYMENT"]:
+    if driver_id is not None and order.status == "PAID_ESCROW":
         order.status = str("READY_FOR_PICKUP") # type: ignore
 
     # Audit log
@@ -594,6 +609,127 @@ def admin_assign_driver(
         "driver_id": driver_id,
         "driver_name": new_driver.name if new_driver else None,
     }
+
+
+@router.post("/orders/{order_id}/cancel-unpaid-payment")
+def admin_cancel_unpaid_payment(
+    order_id: int,
+    payload: schemas.AdminUnpaidOrderCancelRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Libère le stock après vérification manuelle d'un échec fournisseur."""
+    admin = check_admin_auth(request, db)
+    if not payload.provider_confirmed_unpaid:
+        raise HTTPException(status_code=400, detail="Confirmez d'abord l'absence de paiement chez le fournisseur.")
+    if len(payload.note.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Ajoutez une note de rapprochement d'au moins 10 caractères.")
+
+    order = db.query(models.Order).filter(
+        models.Order.id == order_id
+    ).populate_existing().with_for_update().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Commande introuvable.")
+    if order.status != "PENDING_PAYMENT":
+        raise HTTPException(status_code=409, detail="Cette commande n'attend plus de confirmation de paiement.")
+
+    payment_log = db.query(models.TransactionLog.id).filter(
+        models.TransactionLog.order_id == order.id,
+        models.TransactionLog.action == "FUNDS_SENT_TO_ESCROW",
+    ).first()
+    if payment_log:
+        raise HTTPException(status_code=409, detail="Le paiement est déjà comptabilisé.")
+
+    result = payment_service.cancel_order_and_refund(
+        db,
+        order,
+        cancelled_by=f"admin:{admin.id}",
+        payment_failed=True,
+    )
+    db.add(models.AdminAuditLog(
+        admin_user_id=admin.id,
+        action="ORDER_PAYMENT_MANUALLY_FAILED",
+        entity_type="order",
+        entity_id=order.id,
+        detail=f"Paiement confirmé absent chez le fournisseur. Motif: {payload.note.strip()}",
+    ))
+    db.commit()
+    return {
+        "message": "Commande annulée et stock libéré après contrôle du paiement.",
+        "order_id": order.id,
+        "stock_restored": result["stock_restored"],
+    }
+
+
+@router.post("/orders/{order_id}/confirm-payment")
+def admin_confirm_order_payment(
+    order_id: int,
+    payload: schemas.AdminPaidOrderReconciliationRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Rapproche manuellement un paiement confirmé par le fournisseur."""
+    admin = check_admin_auth(request, db)
+    provider_reference = payload.provider_transaction_reference.strip()
+    note = payload.note.strip()
+    if not payload.provider_confirmed_paid:
+        raise HTTPException(status_code=400, detail="Confirmez d'abord l'encaissement chez le fournisseur.")
+    if len(provider_reference) < 3:
+        raise HTTPException(status_code=400, detail="La référence de transaction fournisseur est obligatoire.")
+    if len(note) < 10:
+        raise HTTPException(status_code=400, detail="Ajoutez une note de rapprochement d'au moins 10 caractères.")
+
+    order = db.query(models.Order).filter(
+        models.Order.id == order_id
+    ).populate_existing().with_for_update().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Commande introuvable.")
+    if order.status not in {
+        "PENDING_PAYMENT", "PAID_ESCROW", "CONFIRMED", "READY_FOR_PICKUP",
+        "PICKED_UP", "IN_TRANSIT", "DELIVERED_PENDING_CONFIRMATION",
+    }:
+        raise HTTPException(status_code=409, detail="Le statut actuel ne peut pas être rapproché comme paiement reçu.")
+
+    payment_log = db.query(models.TransactionLog.id).filter(
+        models.TransactionLog.order_id == order.id,
+        models.TransactionLog.action == "FUNDS_SENT_TO_ESCROW",
+    ).first()
+    if payment_log:
+        raise HTTPException(status_code=409, detail="Le paiement est déjà comptabilisé.")
+    reference_used = db.query(models.TransactionLog.id).filter(
+        models.TransactionLog.provider_reference == provider_reference,
+    ).first()
+    if reference_used:
+        raise HTTPException(status_code=409, detail="Cette référence fournisseur est déjà rattachée à une autre transaction.")
+    if not order.buyer_id or order.total_price is None or order.total_price <= 0:
+        raise HTTPException(status_code=409, detail="Les données financières de la commande sont invalides.")
+
+    db.add(models.TransactionLog(
+        user_id=order.buyer_id,
+        order_id=order.id,
+        amount=-order.total_price,
+        action="FUNDS_SENT_TO_ESCROW",
+        provider_reference=provider_reference,
+    ))
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Cette référence fournisseur vient d'être rapprochée sur une autre commande.")
+    if order.status == "PENDING_PAYMENT":
+        order.status = "READY_FOR_PICKUP" if order.driver_id else "PAID_ESCROW"
+    db.add(models.AdminAuditLog(
+        admin_user_id=admin.id,
+        action="ORDER_PAYMENT_MANUALLY_CONFIRMED",
+        entity_type="order",
+        entity_id=order.id,
+        detail=(
+            f"Paiement confirmé chez le fournisseur; référence {provider_reference}. "
+            f"Motif: {note}"
+        ),
+    ))
+    db.commit()
+    return {"message": "Paiement rapproché et commande débloquée.", "order_id": order.id, "status": order.status}
 
 
 @router.get("/drivers")

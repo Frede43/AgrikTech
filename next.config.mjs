@@ -17,7 +17,7 @@ const apiUrl = new URL(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000
 // ici plutôt qu'une fonction fléchée, pour matcher une origine dynamique
 // (dépendant de NEXT_PUBLIC_API_URL) sans réintroduire le même piège.
 const escapedApiOrigin = apiUrl.origin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const authMeUrlPattern = new RegExp(`^${escapedApiOrigin}/auth/me$`);
+const apiUrlPattern = new RegExp(`^${escapedApiOrigin}(?:/|$)`);
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -26,15 +26,10 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   workboxOptions: {
     runtimeCaching: [
-      // Vérification de session (GET /auth/me) : jamais servie depuis le
-      // cache, même hors ligne. Le cache "cross-origin" par défaut (plus bas)
-      // est un NetworkFirst avec repli sur une réponse vieille de jusqu'à 1h
-      // si le réseau échoue/timeout — acceptable pour la plupart des appels,
-      // mais pas pour la question "cet utilisateur a-t-il encore un compte
-      // valide ?", où une réponse périmée peut faire croire à tort qu'un
-      // compte supprimé ou suspendu est toujours actif.
+      // Les réponses de l'API peuvent être liées à l'utilisateur connecté.
+      // Workbox ne doit jamais les réutiliser hors ligne ni entre sessions.
       {
-        urlPattern: authMeUrlPattern,
+        urlPattern: apiUrlPattern,
         handler: "NetworkOnly",
       },
       ...defaultRuntimeCaching,

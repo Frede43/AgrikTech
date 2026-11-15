@@ -56,8 +56,13 @@ def review_credit(credit_id: int, action: str, request: Request, db: Session = D
     if not admin or not utils.user_has_role(admin, "admin"):
         raise HTTPException(status_code=403)
     
-    credit = db.query(models.CreditRequest).filter(models.CreditRequest.id == credit_id).first()
+    credit = db.query(models.CreditRequest).filter(
+        models.CreditRequest.id == credit_id
+    ).with_for_update().first()
     if not credit: raise HTTPException(status_code=404, detail="Demande non trouvée.")
+
+    if credit.status != "pending":
+        raise HTTPException(status_code=409, detail="Cette demande a déjà été traitée.")
     
     if action not in ("approve", "reject"):
         raise HTTPException(status_code=400, detail="Action invalide. Utiliser 'approve' ou 'reject'.")
@@ -67,7 +72,9 @@ def review_credit(credit_id: int, action: str, request: Request, db: Session = D
     
     # Si approuvé, créditer le solde du fermier
     if credit.status == "approved":
-        farmer = db.query(models.User).filter(models.User.id == credit.user_id).first()
+        farmer = db.query(models.User).filter(
+            models.User.id == credit.user_id
+        ).populate_existing().with_for_update().first()
         if farmer:
             farmer.balance += credit.amount_requested
             db.add(models.TransactionLog(

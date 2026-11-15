@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
@@ -26,6 +26,40 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     pass
+
+
+class UserRegistrationRequest(BaseModel):
+    """Champs publics acceptés après validation du téléphone par OTP."""
+    registration_token: str
+    phone_number: str
+    role: str
+    name: str
+    province: Optional[str] = None
+    address: Optional[str] = None
+    commune: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    nationality: Optional[str] = "Burundi"
+    id_number: Optional[str] = None
+    nif_number: Optional[str] = None
+    is_tax_payer: Optional[bool] = False
+
+
+class OtpRequest(BaseModel):
+    phone_number: str
+
+
+class OtpVerifyRequest(BaseModel):
+    phone_number: str
+    code: str
+
+
+class OrderPickupRequest(BaseModel):
+    qr_token: str
+
+
+class OrderDeliveryRequest(BaseModel):
+    otp_code: str
 
 
 class UserUpdate(BaseModel):
@@ -211,6 +245,21 @@ class MockMobileMoneyPayout(BaseModel):
 class AdminActionRequest(BaseModel):
     admin_user_id: Optional[int] = None
     note: Optional[str] = None
+
+
+class AdminWithdrawalApproveRequest(BaseModel):
+    transaction_reference: str
+
+
+class AdminUnpaidOrderCancelRequest(BaseModel):
+    provider_confirmed_unpaid: bool
+    note: str = Field(min_length=10, max_length=500)
+
+
+class AdminPaidOrderReconciliationRequest(BaseModel):
+    provider_confirmed_paid: bool
+    provider_transaction_reference: str = Field(min_length=3, max_length=120)
+    note: str = Field(min_length=10, max_length=500)
 
 
 class AdminAuditEntry(BaseModel):

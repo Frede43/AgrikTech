@@ -24,7 +24,7 @@ const sections: GuideSection[] = [
     content: (
       <p>
         Depuis l&apos;accueil, choisissez <strong>Acheteur</strong> puis renseignez votre numéro de téléphone. Un
-        code à 4 chiffres vous est envoyé par SMS : saisissez-le pour vous connecter, aucun mot de passe
+        code à 6 chiffres vous est envoyé par SMS : saisissez-le pour vous connecter, aucun mot de passe
         n&apos;est nécessaire. Complétez ensuite votre profil (nom, adresse) pour faciliter vos futures livraisons.
       </p>
     ),

@@ -73,7 +73,7 @@ export default function LogistiquePage() {
     setAccepting(orderId);
     setAcceptMsg(null);
     try {
-      await apiFetch(`/orders/${orderId}/accept?driver_id=${session.userId}`, { method: "POST" });
+      await apiFetch(`/orders/${orderId}/accept`, { method: "POST" });
       setAcceptMsg(lang === "fr" ? "✅ Commande acceptée ! Elle apparaît dans vos livraisons." : "✅ Commande yemewe! Iraba mu matangwa yawe.");
       await fetchData();
     } catch (err: any) {

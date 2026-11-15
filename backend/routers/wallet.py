@@ -35,51 +35,28 @@ def request_withdrawal(payload: schemas.WalletWithdrawalRequest, request: Reques
     if amount < config.MIN_WITHDRAWAL_AMOUNT:
         raise HTTPException(status_code=400, detail=f"Minimum {config.MIN_WITHDRAWAL_AMOUNT} BIF.")
 
-    if config.Decimal(str(user.balance or 0)) < amount:
-        raise HTTPException(status_code=400, detail="Solde insuffisant.")
-
     channel = payload.channel or "Lumicash"
     phone = payload.phone_number or user.phone_number
 
-    user.balance = config.Decimal(str(user.balance or 0)) - amount
+    # UPDATE atomique : deux demandes concurrentes ne peuvent pas débiter le
+    # même solde chargé auparavant ni créer des retraits au-delà du disponible.
+    debited = db.query(models.User).filter(
+        models.User.id == user.id,
+        models.User.balance >= amount,
+    ).update(
+        {models.User.balance: models.User.balance - amount},
+        synchronize_session=False,
+    )
+    if debited != 1:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Solde insuffisant.")
     db.flush()
 
-    # Contrôles anti-fraude : un retrait n'est traité (et crédité) immédiatement
-    # que si TOUTES ces conditions sont réunies ; sinon il reste "pending" pour
-    # revue manuelle par un admin (voir routers/admin.py approve/reject).
-    has_delivery_history = (
-        db.query(models.Order.id).filter(
-            models.Order.farmer_id == user.id,
-            models.Order.status == "COMPLETED",
-        ).first() is not None
-    ) or (
-        db.query(models.WithdrawalRequest.id).filter(
-            models.WithdrawalRequest.user_id == user.id,
-            models.WithdrawalRequest.status == "completed",
-        ).first() is not None
-    )
-    phone_matches = phone == user.phone_number
-    under_review_threshold = amount <= config.AUTO_WITHDRAWAL_REVIEW_THRESHOLD
-
-    if not has_delivery_history:
-        status = "pending"
-        note = "Votre demande sera traitée sous 24h après validation de votre compte."
-        message = "Retrait soumis. Un historique confirmé est requis pour le traitement automatique."
-    elif not phone_matches:
-        status = "pending"
-        note = (
-            f"Le numéro principal du compte ({user.phone_number}) diffère du numéro de retrait fourni. "
-            f"Votre demande sera traitée sous 24h."
-        )
-        message = "Votre demande de retrait sera traitée sous 24h."
-    elif not under_review_threshold:
-        status = "pending"
-        note = "Retrait supérieur à 25 000 BIF — vérification manuelle requise. Votre demande sera traitée sous 24h."
-        message = "Votre demande de retrait sera traitée sous 24h."
-    else:
-        status = "completed"
-        note = "Traité automatiquement après contrôles de sécurité."
-        message = "Votre retrait a été traité automatiquement."
+    # Les retraits sont versés manuellement : une demande reste en attente tant
+    # qu'un administrateur n'a pas saisi la référence du paiement réellement envoyé.
+    status = "pending"
+    note = "Demande reçue. Le paiement sera marqué terminé après le versement manuel."
+    message = "Retrait soumis. Le versement sera traité manuellement."
 
     withdrawal = models.WithdrawalRequest(
         user_id=user.id,
@@ -89,8 +66,6 @@ def request_withdrawal(payload: schemas.WalletWithdrawalRequest, request: Reques
         status=status,
         note=note,
     )
-    if status == "completed":
-        withdrawal.processed_at = utils.utcnow_naive()
     db.add(withdrawal)
     db.flush()
 
@@ -99,13 +74,6 @@ def request_withdrawal(payload: schemas.WalletWithdrawalRequest, request: Reques
         entity_type="withdrawal_request", entity_id=withdrawal.id,
         detail=f"Retrait de {amount} BIF via {channel} par {user.name}",
     ))
-    if status == "completed":
-        db.add(models.AdminAuditLog(
-            admin_user_id=None, action="WITHDRAWAL_APPROVED",
-            entity_type="withdrawal_request", entity_id=withdrawal.id,
-            detail="Approuvé automatiquement.",
-        ))
-
     db.commit()
     db.refresh(withdrawal)
     db.refresh(user)

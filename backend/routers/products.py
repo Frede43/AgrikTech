@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFil
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 import os, uuid
+import math
 
 import backend.models as models, backend.schemas as schemas, backend.config as config, backend.utils as utils
 from backend.database import get_db
@@ -15,6 +16,7 @@ router = APIRouter(
 
 # Configuration temporaire des dossiers (doit être centralisé)
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads")
+PRODUCT_IMAGE_MAX_SIZE = 5 * 1024 * 1024
 
 @router.get("", response_model=List[schemas.Product])
 @router.get("/", response_model=List[schemas.Product])
@@ -74,6 +76,13 @@ def create_product(product: schemas.ProductCreate, request: Request, db: Session
     if not user or not utils.user_has_role(user, "farmer"):
         raise HTTPException(status_code=403, detail="Réservé aux fermiers.")
 
+    if product.price_per_kg <= 0 or not math.isfinite(product.quantity_kg) or product.quantity_kg < 0:
+        raise HTTPException(status_code=400, detail="Prix ou stock invalide.")
+    if not math.isfinite(product.min_stock) or product.min_stock < 0:
+        raise HTTPException(status_code=400, detail="Seuil de stock invalide.")
+    if product.vat_rate < 0 or product.vat_rate > 1:
+        raise HTTPException(status_code=400, detail="Taux de TVA invalide.")
+
     if (product.category or "").strip().lower() in config.RESTRICTED_PRODUCT_CATEGORIES:
         raise HTTPException(
             status_code=403,
@@ -109,7 +118,9 @@ def update_product(product_id: int, product_update: schemas.ProductUpdate, reque
         raise HTTPException(status_code=403, detail="Réservé aux fermiers.")
 
     farmer_id = user.id
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    product = db.query(models.Product).filter(
+        models.Product.id == product_id
+    ).populate_existing().with_for_update().first()
     if not product or product.farmer_id != farmer_id:
         raise HTTPException(status_code=403, detail="Accès refusé ou produit non trouvé.")
 
@@ -119,6 +130,11 @@ def update_product(product_id: int, product_update: schemas.ProductUpdate, reque
             status_code=403,
             detail="La vente de café/thé est temporairement suspendue sur AgriConnect en attendant clarification du cadre réglementaire (ODECA/OTB).",
         )
+    if "price_per_kg" in payload and (payload["price_per_kg"] is None or float(payload["price_per_kg"]) <= 0):
+        raise HTTPException(status_code=400, detail="Le prix doit être positif.")
+    if "quantity_kg" in payload and payload["quantity_kg"] is not None:
+        if not math.isfinite(float(payload["quantity_kg"])) or float(payload["quantity_kg"]) < 0:
+            raise HTTPException(status_code=400, detail="Le stock doit être un nombre positif ou nul.")
     stock_reason_code = payload.pop("stock_reason_code", None)
     stock_reason_note = payload.pop("stock_reason_note", None)
 
@@ -166,14 +182,33 @@ def delete_product(product_id: int, request: Request, db: Session = Depends(get_
     db.commit()
 
 @router.post("/{product_id}/upload-image/")
-async def upload_product_image(product_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product: raise HTTPException(status_code=404)
+async def upload_product_image(product_id: int, request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    user = utils.get_authenticated_user(request, db)
+    if not user or not utils.user_has_role(user, "farmer"):
+        raise HTTPException(status_code=403, detail="Réservé aux fermiers.")
+    if config.IS_PRODUCTION and not file_storage_service.is_imagekit_configured():
+        raise HTTPException(status_code=503, detail="Le stockage des images produit n'est pas configuré.")
 
-    contents = await file.read()
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product or product.farmer_id != user.id:
+        raise HTTPException(status_code=404, detail="Produit non trouvé.")
+
+    contents = await file.read(PRODUCT_IMAGE_MAX_SIZE + 1)
+    if len(contents) > PRODUCT_IMAGE_MAX_SIZE:
+        raise HTTPException(status_code=413, detail="Image trop volumineuse (5 Mo maximum).")
+
+    image_types = (
+        ("image/jpeg", "jpg", contents.startswith(b"\xff\xd8\xff")),
+        ("image/png", "png", contents.startswith(b"\x89PNG\r\n\x1a\n")),
+        ("image/webp", "webp", len(contents) >= 12 and contents[:4] == b"RIFF" and contents[8:12] == b"WEBP"),
+    )
+    detected = next((kind for kind in image_types if kind[2]), None)
+    if not detected:
+        raise HTTPException(status_code=400, detail="Formats autorisés : JPEG, PNG ou WebP.")
+
     image_url = file_storage_service.store_uploaded_file(
         contents,
-        file.filename or "photo.jpg",
+        f"photo.{detected[1]}",
         prefix=f"prod_{product_id}",
         folder="/products/",
         local_dir=UPLOAD_DIR,

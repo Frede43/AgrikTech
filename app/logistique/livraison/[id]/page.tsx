@@ -26,8 +26,6 @@ interface DeliveryDetail {
   distance: string;
   estimatedDuration: string;
   instructions: string;
-  pickup_qr: string;
-  delivery_otp: string;
 }
 
 export default function LivraisonDetailPage() {
@@ -74,11 +72,12 @@ export default function LivraisonDetailPage() {
     setActionLoading(true);
     try {
       const endpoint = isPickupStep
-        ? `/orders/${delivery.id}/pickup?qr_token=${encodeURIComponent(valCode)}&driver_id=${session.userId}`
-        : `/orders/${delivery.id}/deliver?otp_code=${encodeURIComponent(valCode)}`;
+        ? `/orders/${delivery.id}/pickup`
+        : `/orders/${delivery.id}/deliver`;
 
       await apiFetch(endpoint, {
         method: "POST",
+        body: JSON.stringify(isPickupStep ? { qr_token: valCode } : { otp_code: valCode }),
       });
 
       alert(isPickupStep ? text.logiConfirmPickup : text.logiConfirmDelivery);

@@ -28,6 +28,7 @@ backend/uvicorn_logs.txt
 # Uploads locaux (photos produits, documents KYC)
 static/uploads/
 backend/static/uploads/
+backend/private_uploads/
 
 # Tests
 playwright-report/

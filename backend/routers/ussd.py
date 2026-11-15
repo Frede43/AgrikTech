@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Form
+import hmac
+
+from fastapi import APIRouter, Depends, Form, Header, HTTPException
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
@@ -17,6 +19,7 @@ def handle_ussd(
     serviceCode: str = Form(...),
     phoneNumber: str = Form(...),
     text: str = Form(""),
+    x_ussd_secret: str = Header(default=""),
     db: Session = Depends(get_db),
 ):
     """
@@ -33,6 +36,11 @@ def handle_ussd(
     par l'utilisateur) : c'est un signal d'identité aussi fiable qu'un SMS
     OTP, pas besoin de PIN supplémentaire pour de la simple consultation.
     """
+    if not config.USSD_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Passerelle USSD non configurée.")
+    if not hmac.compare_digest(x_ussd_secret, config.USSD_WEBHOOK_SECRET):
+        raise HTTPException(status_code=401, detail="Authentification USSD invalide.")
+
     steps = text.split("*") if text else []
     # Certains agrégateurs envoient le numéro sans le préfixe "+" (ex.
     # "25779000001" au lieu de "+25779000001") — on tente les deux formats

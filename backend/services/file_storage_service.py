@@ -23,21 +23,29 @@ def is_imagekit_configured() -> bool:
     return bool(config.IMAGEKIT_PRIVATE_KEY and config.IMAGEKIT_PUBLIC_KEY and config.IMAGEKIT_URL_ENDPOINT)
 
 
-def _upload_to_imagekit(contents: bytes, filename: str, folder: str) -> str:
+def _upload_to_imagekit(contents: bytes, filename: str, folder: str, *, private: bool = False) -> str:
+    form_data = {
+        "fileName": filename,
+        "folder": folder,
+        "useUniqueFileName": "false",
+    }
+    if private:
+        form_data["isPrivateFile"] = "true"
     response = requests.post(
         IMAGEKIT_UPLOAD_URL,
         auth=(config.IMAGEKIT_PRIVATE_KEY, ""),
-        data={
-            "fileName": filename,
-            "folder": folder,
-            "useUniqueFileName": "false",
-        },
+        data=form_data,
         files={"file": (filename, contents)},
         timeout=20,
     )
     if response.status_code >= 400:
         raise RuntimeError(f"Échec de l'upload ImageKit ({response.status_code}): {response.text[:300]}")
     data = response.json()
+    if private:
+        file_path = data.get("filePath")
+        if not file_path:
+            raise RuntimeError("Réponse ImageKit inattendue, pas de chemin de fichier privé renvoyé.")
+        return f"imagekit-private:{file_path}"
     url = data.get("url")
     if not url:
         raise RuntimeError(f"Réponse ImageKit inattendue, pas d'URL renvoyée: {data}")
@@ -52,21 +60,27 @@ def _upload_to_local_disk(contents: bytes, filename: str, local_dir: str, url_pr
     return f"{url_prefix}/{filename}"
 
 
-def store_uploaded_file(contents: bytes, original_filename: str, *, prefix: str, folder: str, local_dir: str, local_url_prefix: str) -> str:
+def store_uploaded_file(contents: bytes, original_filename: str, *, prefix: str, folder: str, local_dir: str, local_url_prefix: str, private: bool = False) -> str:
     """
-    Stocke un fichier uploadé et renvoie son URL publique.
+    Stocke un fichier uploadé et renvoie son URL ou une référence privée.
 
     - `prefix` : préfixe du nom de fichier généré (ex: "prod_12", "kyc_5").
     - `folder` : dossier ImageKit cible (ex: "/products/", "/kyc/").
+    - `private=True` garde le document hors du montage statique et demande à
+      ImageKit de marquer le fichier privé.
     - `local_dir` / `local_url_prefix` : chemin disque et préfixe d'URL de
       repli (dev sans clés ImageKit) — fournis par l'appelant plutôt que
       codés en dur ici, pour rester substituables dans les tests (voir
       products_router.UPLOAD_DIR / users_router.KYC_UPLOAD_DIR).
     """
     extension = original_filename.rsplit(".", 1)[-1].lower() if "." in original_filename else "bin"
-    filename = f"{prefix}_{uuid.uuid4().hex[:8]}.{extension}"
+    filename = f"{prefix}_{uuid.uuid4().hex}.{extension}"
 
     if is_imagekit_configured():
-        return _upload_to_imagekit(contents, filename, folder)
+        return _upload_to_imagekit(contents, filename, folder, private=private)
+
+    if private:
+        _upload_to_local_disk(contents, filename, local_dir, local_url_prefix)
+        return f"local-private:{filename}"
 
     return _upload_to_local_disk(contents, filename, local_dir, local_url_prefix)

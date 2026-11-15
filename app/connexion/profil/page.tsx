@@ -58,10 +58,16 @@ function ProfileForm() {
         setError("");
 
         try {
+            const phoneNumber = `+257${phone.replace(/\D/g, "")}`;
+            const registrationToken = sessionStorage.getItem(`agriconnect.registration.${phoneNumber}`);
+            if (!registrationToken) {
+                throw new Error("La vérification SMS a expiré. Recommencez l'inscription par téléphone.");
+            }
             const registration = await apiFetch("/auth/register", {
                 method: "POST",
                 body: JSON.stringify({
-                    phone_number: `+257${phone}`,
+                    registration_token: registrationToken,
+                    phone_number: phoneNumber,
                     name,
                     province,
                     address,
@@ -74,6 +80,7 @@ function ProfileForm() {
             }) as { user_id?: number | string; role?: string };
 
             const session = parseAppSession(registration) ?? await fetchCurrentSession();
+            sessionStorage.removeItem(`agriconnect.registration.${phoneNumber}`);
             persistSessionSnapshot(session);
             router.push(getRoleHomePath(session.role));
         } catch (err: any) {

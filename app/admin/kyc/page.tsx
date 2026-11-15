@@ -149,7 +149,7 @@ export default function AdminKycPage() {
             </Card>
           ) : (
             filtered.map((u) => {
-              const documentUrl = buildImageUrl(u.id_document_url);
+              const documentUrl = buildImageUrl(`/users/${u.id}/kyc/document`);
               return (
                 <Card key={u.id} className="overflow-hidden border-border/50">
                   <CardContent className="p-6 space-y-4">

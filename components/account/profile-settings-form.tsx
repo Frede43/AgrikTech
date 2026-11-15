@@ -306,7 +306,7 @@ export function ProfileSettingsForm({ role, nameLabel, intro }: ProfileSettingsF
 
                     {user?.id_document_url && (
                         <a
-                            href={buildImageUrl(user.id_document_url) || "#"}
+                            href={buildImageUrl(`/users/${user.id}/kyc/document`) || "#"}
                             target="_blank"
                             rel="noreferrer"
                             className="text-sm text-primary hover:underline inline-flex items-center gap-1"
